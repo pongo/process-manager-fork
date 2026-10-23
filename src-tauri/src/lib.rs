@@ -182,7 +182,6 @@ pub fn run() {
             commands::clear_logs,
             commands::save_config,
             commands::load_config,
-            commands::set_auto_start,
             commands::start_all,
             commands::stop_all,
             commands::terminal_run,

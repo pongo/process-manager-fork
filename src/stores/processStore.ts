@@ -256,15 +256,6 @@ export const useProcessStore = defineStore("process", () => {
     }
   };
 
-  const setAutoStart = async (enable: boolean) => {
-    try {
-      await invoke("set_auto_start", { enable });
-    } catch (error) {
-      console.error("Failed to set auto-start:", error);
-      throw error;
-    }
-  };
-
   const startAll = async () => {
     try {
       await invoke("start_all");
@@ -304,7 +295,6 @@ export const useProcessStore = defineStore("process", () => {
     updateMetrics,
     saveConfig,
     loadConfig,
-    setAutoStart,
     startAll,
     stopAll,
   };

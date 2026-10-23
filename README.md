@@ -40,7 +40,7 @@ Stop juggling multiple terminal windows or remembering `pm2` commands. Define yo
 - ⚡ **Desktop shell:** Tauri 2 (Rust)
 - 🎨 **Frontend:** Vue 3 + TypeScript + Pinia
 - 📈 **Monitoring:** `sysinfo`
-- 🪟 **Windows integration:** tray icon/menu + registry auto-start (`winreg`)
+- 🪟 **Windows integration:** tray icon/menu
 
 ## 📋 Requirements
 

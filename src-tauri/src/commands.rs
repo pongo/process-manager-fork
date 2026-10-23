@@ -304,37 +304,6 @@ pub async fn load_config(state: State<'_, AppState>) -> Result<Vec<ProcessState>
 }
 
 #[tauri::command]
-pub async fn set_auto_start(enable: bool) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        use std::env;
-        use winreg::enums::*;
-        use winreg::RegKey;
-
-        let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
-
-        let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-        let (key, _) = hkcu
-            .create_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")
-            .map_err(|e| format!("Failed to open registry: {}", e))?;
-
-        if enable {
-            key.set_value("ProcessManager", &exe_path.to_string_lossy().to_string())
-                .map_err(|e| format!("Failed to set registry: {}", e))?;
-        } else {
-            key.delete_value("ProcessManager").ok();
-        }
-
-        Ok(())
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        Err("Auto-start only supported on Windows".to_string())
-    }
-}
-
-#[tauri::command]
 pub async fn start_all(
     state: State<'_, AppState>,
     window: AppHandle,

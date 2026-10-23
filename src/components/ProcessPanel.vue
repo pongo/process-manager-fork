@@ -111,15 +111,6 @@
                   <div class="toggle-thumb"></div>
                 </div>
               </label>
-              <label class="toggle-row">
-                <div class="toggle-info">
-                  <span class="toggle-label">Launch on Windows startup</span>
-                  <span class="toggle-hint">Start Process Manager automatically when Windows boots</span>
-                </div>
-                <div :class="['toggle', { on: draft.bootAutoStart }]" @click="draft.bootAutoStart = !draft.bootAutoStart">
-                  <div class="toggle-thumb"></div>
-                </div>
-              </label>
             </div>
             <div class="settings-col">
               <div class="settings-section-title">Process</div>
@@ -194,7 +185,7 @@ const saving = ref(false)
 const savedMsg = ref(false)
 const logsEl = ref<HTMLElement>()
 const metrics = reactive({ cpuPercent: 0, memoryMb: 0, memoryPercent: 0 })
-const draft = reactive({ autoRestart: false, autoStart: false, bootAutoStart: false, workingDir: '' })
+const draft = reactive({ autoRestart: false, autoStart: false, workingDir: '' })
 
 const proc = computed(() => store.selectedProcess())
 const currentLogs = computed(() =>
@@ -214,7 +205,6 @@ const syncDraft = () => {
   if (!p) return
   draft.autoRestart = p.autoRestart
   draft.autoStart = p.autoStart
-  draft.bootAutoStart = false // can't read from registry, default off
   draft.workingDir = p.workingDir ?? ''
 }
 
@@ -312,7 +302,6 @@ const saveSettings = async () => {
       draft.autoStart,
       draft.workingDir
     )
-    await store.setAutoStart(draft.bootAutoStart)
     await store.saveConfig()
     savedMsg.value = true
     setTimeout(() => { savedMsg.value = false }, 2000)
