@@ -97,6 +97,16 @@ pub fn run() {
                 manager.processes.insert(instance.id.clone(), instance);
             }
             drop(manager);
+
+            // Keep the window hidden when launched with --start-in-tray, otherwise show it.
+            let start_in_tray = std::env::args().any(|arg| arg == "--start-in-tray");
+            if !start_in_tray {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.show()?;
+                    window.set_focus()?;
+                }
+            }
+
             // Build system tray menu
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let hide = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;

@@ -81,6 +81,12 @@ Build production desktop app:
 bun run tauri build
 ```
 
+Launch the installed executable minimized to the system tray:
+
+```text
+ProcessManager.exe --start-in-tray
+```
+
 ## 📖 Using the App
 
 ### ⚡ Manage processes
