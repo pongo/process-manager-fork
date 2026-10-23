@@ -146,10 +146,15 @@ const runningCount = computed(() =>
 )
 
 const filteredProcesses = computed(() => {
-  if (!search.value.trim()) return store.processes
   const q = search.value.toLowerCase()
-  return store.processes.filter(
-    (p: any) => p.name.toLowerCase().includes(q) || p.command.toLowerCase().includes(q)
+  const processes = search.value.trim()
+    ? store.processes.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.command.toLowerCase().includes(q)
+    )
+    : [...store.processes]
+  return processes.sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base', numeric: true })
+    || a.id.localeCompare(b.id)
   )
 })
 
