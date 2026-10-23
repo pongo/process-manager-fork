@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:tauri": "tauri dev",
     "build": "vue-tsc --noEmit && vite build",
+    "build:tauri": "tauri build",
     "preview": "vite preview",
     "tauri": "tauri",
     "icons": "node generate-icons.mjs && node create-ico.mjs && npx png2icons src-tauri/icons/1024x1024.png src-tauri/icons/icon -icns"
