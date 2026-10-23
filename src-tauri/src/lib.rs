@@ -21,6 +21,8 @@ use tauri::{
 
 fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
+        window.unminimize()?;
+        window.maximize()?;
         window.show()?;
         window.set_focus()?;
         return Ok(());
