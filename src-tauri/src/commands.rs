@@ -408,21 +408,32 @@ pub async fn terminal_run(
         terminal.get_cwd(&session_id)
     };
 
-    // Spawn via PowerShell on Windows
+    // Prefer PowerShell 7, falling back when it is not installed.
     #[cfg(target_os = "windows")]
     use std::os::windows::process::CommandExt;
     
-    let mut cmd = std::process::Command::new("powershell");
-    cmd.args(["-NoProfile", "-NonInteractive", "-Command", &command])
-        .current_dir(&cwd)
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    
-    // Hide console window on Windows
-    #[cfg(target_os = "windows")]
-    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    
-    let mut child = cmd.spawn()
+    let spawn_shell = |shell: &str| {
+        let mut cmd = std::process::Command::new(shell);
+        cmd.args(["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", &command])
+            .current_dir(&cwd)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped());
+
+        // Hide console window on Windows.
+        #[cfg(target_os = "windows")]
+        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+        cmd.spawn()
+    };
+
+    let mut child = spawn_shell("pwsh.exe")
+        .or_else(|error| {
+            if error.kind() == std::io::ErrorKind::NotFound {
+                spawn_shell("powershell.exe")
+            } else {
+                Err(error)
+            }
+        })
         .map_err(|e| format!("Failed to spawn command: {}", e))?;
 
     let stdout = child.stdout.take().expect("stdout piped");
