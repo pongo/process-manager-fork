@@ -18,6 +18,23 @@ use tauri::{
     Emitter, Manager,
 };
 
+fn quit_app(app: &tauri::AppHandle) {
+    let windows = app.webview_windows();
+    if windows.is_empty() {
+        app.exit(0);
+        return;
+    }
+
+    // Destroy WebViews before the event loop exits; the last window triggers shutdown.
+    for window in windows.values() {
+        if let Err(error) = window.destroy() {
+            eprintln!("Failed to destroy window {}: {error}", window.label());
+            app.exit(1);
+            return;
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize config and log directories
@@ -102,7 +119,7 @@ pub fn run() {
                         }
                     }
                     "quit" => {
-                        std::process::exit(0);
+                        quit_app(app);
                     }
                     _ => {}
                 })
