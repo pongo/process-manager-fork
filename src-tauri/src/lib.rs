@@ -29,10 +29,10 @@ pub fn run() {
     let process_manager = Arc::new(std::sync::Mutex::new(ProcessManager::new()));
     let log_handler = Arc::new(log_handler);
     
-    // Pre-warm sysinfo so the first CPU reading has a prior snapshot to diff against.
+    // Cache total RAM; process CPU snapshots are collected on demand.
     let sys = {
-        let mut s = sysinfo::System::new_all();
-        s.refresh_all();
+        let mut s = sysinfo::System::new();
+        s.refresh_memory();
         s
     };
 

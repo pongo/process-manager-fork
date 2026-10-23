@@ -63,6 +63,8 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useProcessStore } from '@/stores/processStore'
+import { useWindowActivity, windowActive } from '@/composables/useWindowActivity'
+import { usePolling } from '@/composables/usePolling'
 import ProcessList from '@/components/ProcessList.vue'
 import ProcessPanel from '@/components/ProcessPanel.vue'
 import AppDialog from '@/components/AppDialog.vue'
@@ -70,6 +72,9 @@ import TerminalPane from '@/components/TerminalPane.vue'
 
 const store = useProcessStore()
 const win = getCurrentWindow()
+useWindowActivity()
+const ready = ref(false)
+usePolling(() => store.loadProcesses(), () => ready.value && windowActive.value)
 
 const terminalOpen = ref(false)
 const terminalHeight = ref(280)
@@ -105,15 +110,12 @@ const hideToTray = () => win.hide()
 
 let unlistenStartAll: UnlistenFn | null = null
 let unlistenStopAll: UnlistenFn | null = null
-let pollInterval: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   try { await store.loadConfig() } catch { /* fresh install */ }
   await store.loadProcesses()
 
-  pollInterval = setInterval(async () => {
-    try { await store.loadProcesses() } catch { /* ignore */ }
-  }, 2000)
+  ready.value = true
 
   unlistenStartAll = await listen('app:start_all', async () => {
     try { await store.startAll() } catch { /* ignore */ }
@@ -124,7 +126,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
   unlistenStartAll?.()
   unlistenStopAll?.()
 })

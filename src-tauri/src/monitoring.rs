@@ -1,5 +1,5 @@
 use crate::types::ProcessMetrics;
-use sysinfo::{Pid, System};
+use sysinfo::{Pid, ProcessRefreshKind, System};
 
 pub struct Monitoring;
 
@@ -8,10 +8,14 @@ impl Monitoring {
     /// Each call refreshes it so the CPU delta is computed from the
     /// previous refresh (accurate after the first measurement).
     pub fn get_process_metrics(pid: u32, system: &mut System) -> Result<ProcessMetrics, String> {
-        system.refresh_all();
-
         let total_memory = system.total_memory(); // bytes
         let pid_sysinfo = Pid::from_u32(pid);
+        if !system.refresh_process_specifics(
+            pid_sysinfo,
+            ProcessRefreshKind::new().with_cpu().with_memory(),
+        ) {
+            return Err("Process not found".to_string());
+        }
 
         if let Some(process) = system.process(pid_sysinfo) {
             let cpu_percent = process.cpu_usage();

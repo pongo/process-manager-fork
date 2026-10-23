@@ -183,6 +183,8 @@ import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useProcessStore } from '@/stores/processStore'
 import { useDialog } from '@/composables/useDialog'
+import { windowActive } from '@/composables/useWindowActivity'
+import { usePolling } from '@/composables/usePolling'
 
 const store = useProcessStore()
 const { openConfirm, openAlert } = useDialog()
@@ -199,7 +201,6 @@ const currentLogs = computed(() =>
   store.selectedProcessId ? store.getProcessLogs(store.selectedProcessId) : []
 )
 
-let metricsInterval: ReturnType<typeof setInterval> | null = null
 let unlistenLog: UnlistenFn | null = null
 
 const scrollToBottom = async () => {
@@ -217,30 +218,33 @@ const syncDraft = () => {
   draft.workingDir = p.workingDir ?? ''
 }
 
-const startMetricsPolling = (id: string) => {
-  stopMetricsPolling()
-  metricsInterval = setInterval(async () => {
-    if (store.selectedProcessId !== id) { stopMetricsPolling(); return }
-    try {
-      await store.updateMetrics(id)
-      const m = store.getProcessMetrics(id)
-      metrics.cpuPercent = m.cpuPercent
-      metrics.memoryMb = m.memoryMb
-      metrics.memoryPercent = m.memoryPercent
-    } catch { /* ignore */ }
-  }, 1500)
-}
+const metricsTarget = computed(() => {
+  const p = proc.value
+  return windowActive.value && p?.status === 'Running' && p.pid ? `${p.id}:${p.pid}` : ''
+})
+let metricsRevision = 0
+watch(metricsTarget, () => {
+  metricsRevision++
+  Object.assign(metrics, { cpuPercent: 0, memoryMb: 0, memoryPercent: 0 })
+}, { flush: 'sync' })
 
-const stopMetricsPolling = () => {
-  if (metricsInterval) { clearInterval(metricsInterval); metricsInterval = null }
-}
+usePolling(async () => {
+  const target = metricsTarget.value
+  const revision = metricsRevision
+  const id = store.selectedProcessId
+  if (!target || !id) return
+  const isCurrent = () => metricsRevision === revision && metricsTarget.value === target
+  await store.updateMetrics(id, isCurrent)
+  if (!isCurrent()) return
+  Object.assign(metrics, store.getProcessMetrics(id))
+}, metricsTarget)
 
 const stopLogListener = () => {
   if (unlistenLog) { unlistenLog(); unlistenLog = null }
 }
 
 onBeforeUnmount(() => {
-  stopMetricsPolling()
+  metricsRevision++
   stopLogListener()
 })
 
@@ -250,10 +254,9 @@ watch(() => store.selectedProcessId, async (id) => {
   metrics.memoryPercent = 0
   showSettings.value = false
   stopLogListener()
-  if (!id) { stopMetricsPolling(); return }
+  if (!id) return
   syncDraft()
   await loadLogs()
-  startMetricsPolling(id)
   unlistenLog = await listen(`process:log:${id}`, (event) => {
     const log = event.payload as { timestamp: string; level: string; message: string }
     store.addLog(id, {

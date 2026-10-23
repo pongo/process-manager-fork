@@ -196,12 +196,13 @@ export const useProcessStore = defineStore("process", () => {
     }
   };
 
-  const updateMetrics = async (id: string) => {
+  const updateMetrics = async (id: string, isCurrent: () => boolean = () => true) => {
     try {
       const result: { cpu_percent: number; memory_mb: number; memory_percent: number } = await invoke(
         "get_metrics",
         { processId: id }
       );
+      if (!isCurrent()) return;
       metrics[id] = {
         cpuPercent: result.cpu_percent,
         memoryMb: result.memory_mb,
