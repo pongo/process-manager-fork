@@ -3,7 +3,6 @@ mod config_handler;
 mod log_handler;
 mod monitoring;
 mod process_manager;
-mod terminal;
 mod types;
 
 use commands::AppState;
@@ -145,7 +144,6 @@ pub fn run() {
         manager: Arc::clone(&process_manager),
         log_handler: Arc::clone(&log_handler),
         system: Arc::new(std::sync::Mutex::new(sys)),
-        terminal: Arc::new(std::sync::Mutex::new(terminal::TerminalManager::new())),
     };
 
     tauri::Builder::default()
@@ -266,11 +264,6 @@ pub fn run() {
             commands::load_config,
             commands::start_all,
             commands::stop_all,
-            commands::terminal_run,
-            commands::terminal_kill,
-            commands::terminal_set_cwd,
-            commands::terminal_get_cwd,
-            commands::terminal_add_process,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

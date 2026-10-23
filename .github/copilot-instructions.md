@@ -2,13 +2,12 @@
 
 ## Project Overview
 
-**Process Manager** is a Tauri 2 desktop app (Windows-only) that manages, monitors, and controls long-running CLI commands via a native GUI. Think PM2 with a UI. It combines a **Vue 3 + TypeScript frontend** with a **Rust backend** for process control, monitoring, and terminal integration.
+**Process Manager** is a Tauri 2 desktop app (Windows-only) that manages, monitors, and controls long-running CLI commands via a native GUI. Think PM2 with a UI. It combines a **Vue 3 + TypeScript frontend** with a **Rust backend** for process control and monitoring.
 
 Core features:
 - Start/stop/restart processes with state persistence
 - Real-time ANSI-colored log streaming per process
 - CPU/memory monitoring via `sysinfo`
-- Integrated PowerShell terminal with command history
 - System tray with quick actions
 - Auto-restart/auto-start toggles
 
@@ -60,7 +59,6 @@ This shares state via reactive objects—do NOT create separate dialog instances
 
 - **[ProcessList.vue](src/components/ProcessList.vue)**: Sidebar list of all processes
 - **[ProcessPanel.vue](src/components/ProcessPanel.vue)**: Main view (logs + metrics for selected)
-- **[TerminalPane.vue](src/components/TerminalPane.vue)**: Integrated PowerShell terminal
 - **[AddProcessModal.vue](src/components/AddProcessModal.vue)**: Form to add new processes
 - **[AppDialog.vue](src/components/AppDialog.vue)**: Global confirmation/alert dialogs
 
@@ -74,7 +72,6 @@ Components are primarily **presentational**; business logic lives in the Pinia s
 - **[src-tauri/src/commands.rs](src-tauri/src/commands.rs)**: Tauri `#[command]` handlers that expose Rust methods to frontend via IPC
 - **[src-tauri/src/monitoring.rs](src-tauri/src/monitoring.rs)**: CPU/memory tracking using `sysinfo`
 - **[src-tauri/src/log_handler.rs](src-tauri/src/log_handler.rs)**: Writes stdout/stderr to files + emits events in real-time
-- **[src-tauri/src/terminal.rs](src-tauri/src/terminal.rs)**: PowerShell session management with working directory tracking
 - **[src-tauri/src/config_handler.rs](src-tauri/src/config_handler.rs)**: Config persistence (JSON files in user's appdata)
 
 ### Process Lifecycle
@@ -89,7 +86,7 @@ Components are primarily **presentational**; business logic lives in the Pinia s
 ### Adding a New Tauri Command
 
 1. Create `#[tauri::command]` function in [src-tauri/src/commands.rs](src-tauri/src/commands.rs)
-2. Access `State<AppState>` to get `manager`, `log_handler`, `system`, `terminal`
+2. Access `State<AppState>` to get `manager`, `log_handler`, `system`
 3. Return serializable data (JSON); errors become Tauri errors
 4. Frontend calls `invoke("command_name", args)`
 
@@ -231,7 +228,6 @@ src-tauri/
     log_handler.rs    # Log file I/O
     monitoring.rs     # CPU/memory tracking
     process_manager.rs # Process lifecycle
-    terminal.rs       # PowerShell terminal
     types.rs          # Rust types
     lib.rs            # Module tree + Tauri setup
     main.rs           # Binary entrypoint (minimal)

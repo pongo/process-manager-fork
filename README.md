@@ -6,7 +6,7 @@
 
 ![Home](images/home.png)
 
-Manage, monitor, and control long-running commands (dev servers, tunnels, background jobs) from a single interface. Define processes once, start/stop them with a click, view live logs with ANSI colors, track resource usage, and use the built-in PowerShell terminal to run ad-hoc commands that can be promoted into managed processes. Think PM2 or systemd, but with a native GUI.
+Manage, monitor, and control long-running commands (dev servers, tunnels, background jobs) from a single interface. Define processes once, start/stop them with a click, view live logs with ANSI colors, and track resource usage. Think PM2 or systemd, but with a native GUI.
 
 ## 🎯 Why?
 
@@ -20,20 +20,11 @@ Stop juggling multiple terminal windows or remembering `pm2` commands. Define yo
 - 🔁 Auto-restart and auto-start toggles per process
 - 💾 Config save/load persistence
 - 🗂️ Minimize-to-tray workflow with tray menu actions
-- 🖥️ **Integrated terminal pane** (PowerShell-based) with:
-  - 🕐 Command history
-  - 📦 Per-command output blocks
-  - ⏹️ Stop running command
-  - 📁 `cd` session directory handling
-  - ➕ "Add to processes" for commands you want to manage long-term
 
 ## 📸 Screenshots
 
 **Task page - logs, metrics & controls**
 ![Task page](images/task%20page.png)
-
-**Integrated terminal pane**
-![Terminal](images/terminal.png)
 
 ## 🛠️ Tech Stack
 
@@ -96,16 +87,6 @@ ProcessManager.exe --start-in-tray
 3. Use row actions to start/stop/restart.
 4. Select a process to inspect logs and metrics in the right panel.
 
-### 🖥️ Use the integrated terminal
-
-1. Click the terminal button (`>_`) in the titlebar.
-2. Run commands directly in the terminal panel.
-3. Use `cd` to change terminal session working directory.
-4. Stop an active command with the ⏹ stop button or `Ctrl+C`.
-5. Click **Add to processes** to promote useful commands into the managed process list.
-
-> ⚡ Terminal commands run through PowerShell.
-
 ## 🗃️ Data & Logs
 
 - 💾 Process configs and logs are stored under your app data directory.
@@ -129,7 +110,7 @@ From `package.json`:
 
 ## 🔧 Troubleshooting
 
-### ⚡ Terminal command not found
+### ⚡ Process command not found
 
 - Verify the command exists in your PowerShell PATH:
   - `Get-Command <tool-name>`
