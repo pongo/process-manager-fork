@@ -31,9 +31,9 @@
             Stop
           </button>
           <button class="hdr-btn restart" @click="restartProcess">
-            <svg viewBox="0 0 12 12" width="10" height="10" fill="none">
-              <path d="M10 6A4 4 0 112 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-              <path d="M10 3v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
             </svg>
             Restart
           </button>
@@ -137,9 +137,9 @@
               <span class="as-text">Auto-scroll</span>
             </label>
             <button class="log-btn" @click="refreshLogs">
-              <svg viewBox="0 0 12 12" width="10" height="10" fill="none">
-                <path d="M10 6A4 4 0 112 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                <path d="M10 3v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
               </svg>
             </button>
             <button class="log-btn danger" @click="clearLogs">Clear</button>
