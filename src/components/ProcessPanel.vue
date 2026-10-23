@@ -75,7 +75,7 @@
         </div>
         <div class="metric">
           <span class="m-label">Uptime</span>
-          <span class="m-val" :class="{ 'val-dim': !proc.uptimeMs }">{{ proc.uptimeMs ? formatUptime(proc.uptimeMs) : '—' }}</span>
+          <span class="m-val" :class="{ 'val-dim': !store.getUptime(proc) }">{{ proc.status === 'Running' || proc.uptimeMs ? formatUptime(store.getUptime(proc)) : '—' }}</span>
         </div>
         <div class="metric">
           <span class="m-label">Crashes</span>

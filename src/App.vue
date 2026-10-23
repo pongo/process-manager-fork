@@ -103,6 +103,7 @@ function stopResize() {
 const runningCount = computed(() =>
   store.processes.filter((p: any) => p.status === 'Running').length
 )
+usePolling(async () => store.updateUptimeClock(), () => windowActive.value && runningCount.value > 0, 1000)
 
 const minimize = () => win.minimize()
 const toggleMaximize = () => win.toggleMaximize()

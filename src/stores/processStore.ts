@@ -8,6 +8,17 @@ export const useProcessStore = defineStore("process", () => {
   const selectedProcessId = ref<string | null>(null);
   const logs = reactive<Record<string, LogEntry[]>>({});
   const metrics = reactive<Record<string, ProcessMetrics>>({});
+  const uptimeNow = ref(performance.now());
+
+  const updateUptimeClock = () => {
+    uptimeNow.value = performance.now();
+  };
+
+  const getUptime = (process: Process): number => {
+    if (process.status !== "Running") return process.uptimeMs;
+    const elapsed = Math.max(0, uptimeNow.value - (process.uptimeSampledAt ?? uptimeNow.value));
+    return process.uptimeMs + elapsed;
+  };
 
   const selectedProcess = () => {
     if (!selectedProcessId.value) return null;
@@ -84,6 +95,8 @@ export const useProcessStore = defineStore("process", () => {
       if (process) {
         process.status = "Running";
         process.pid = pid;
+        process.uptimeMs = 0;
+        process.uptimeSampledAt = performance.now();
       }
     } catch (error) {
       console.error("Failed to start process:", error);
@@ -96,8 +109,11 @@ export const useProcessStore = defineStore("process", () => {
       await invoke("stop_process", { processId: id });
       const process = processes.value.find((p) => p.id === id);
       if (process) {
+        updateUptimeClock();
+        process.uptimeMs = getUptime(process);
         process.status = "Stopped";
         process.pid = undefined;
+        process.uptimeSampledAt = undefined;
       }
     } catch (error) {
       console.error("Failed to stop process:", error);
@@ -112,6 +128,8 @@ export const useProcessStore = defineStore("process", () => {
       if (process) {
         process.status = "Running";
         process.pid = pid;
+        process.uptimeMs = 0;
+        process.uptimeSampledAt = performance.now();
       }
     } catch (error) {
       console.error("Failed to restart process:", error);
@@ -147,6 +165,8 @@ export const useProcessStore = defineStore("process", () => {
   const loadProcesses = async () => {
     try {
       const result: Process[] = await invoke("get_processes");
+      updateUptimeClock();
+      result.forEach((p) => { p.uptimeSampledAt = uptimeNow.value; });
       processes.value = result;
       result.forEach((p) => {
         if (!logs[p.id]) logs[p.id] = [];
@@ -274,6 +294,8 @@ export const useProcessStore = defineStore("process", () => {
     restartProcess,
     updateProcess,
     loadProcesses,
+    getUptime,
+    updateUptimeClock,
     loadLogs,
     getProcessLogs,
     addLog,

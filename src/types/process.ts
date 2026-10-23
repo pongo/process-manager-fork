@@ -9,6 +9,8 @@ export interface Process {
   autoStart: boolean;
   workingDir?: string;
   uptimeMs: number;
+  // Frontend-only monotonic timestamp for local uptime interpolation.
+  uptimeSampledAt?: number;
   crashCount: number;
 }
 

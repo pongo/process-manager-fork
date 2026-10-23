@@ -78,7 +78,7 @@
               <span v-if="p.status === 'Crashed' && p.crashCount" class="crash-badge">{{ p.crashCount }}x</span>
             </div>
             <div v-if="p.pid && p.status === 'Running'" class="row-meta">
-              PID {{ p.pid }}&nbsp; · &nbsp;{{ formatUptime(p.uptimeMs) }}
+              PID {{ p.pid }}&nbsp; · &nbsp;{{ formatUptime(store.getUptime(p)) }}
             </div>
           </div>
         </div>
