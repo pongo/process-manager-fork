@@ -130,8 +130,8 @@
         <div class="logs-toolbar">
           <span class="logs-label">OUTPUT</span>
           <div class="logs-actions">
-            <label class="autoscroll">
-              <span class="as-track" :class="{ on: autoScroll }" @click="autoScroll = !autoScroll">
+            <label class="autoscroll" @click="autoScroll = !autoScroll">
+              <span class="as-track" :class="{ on: autoScroll }">
                 <span class="as-thumb"></span>
               </span>
               <span class="as-text">Auto-scroll</span>
@@ -671,7 +671,7 @@ function parseAnsi(raw: string): string {
 }
 .logs-actions { display: flex; align-items: center; gap: 8px; }
 
-.autoscroll { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.autoscroll { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
 .as-track {
   width: 26px; height: 14px;
   border-radius: 7px;
