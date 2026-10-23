@@ -21,6 +21,16 @@ pub struct AppState {
     pub terminal: Arc<Mutex<TerminalManager>>,
 }
 
+// Keep the manager locked during writes so concurrent changes are saved in order.
+fn persist_config(manager: &ProcessManager) -> Result<(), String> {
+    let configs: Vec<ProcessConfig> = manager
+        .processes
+        .values()
+        .map(|p| p.to_config())
+        .collect();
+    ConfigHandler::save_configs(&configs).map_err(|e| e.to_string())
+}
+
 /// Spawn background threads that read stdout/stderr from a child process,
 /// write each line to the log file, and emit a real-time Tauri event.
 fn start_log_readers(
@@ -167,6 +177,7 @@ pub async fn add_process(
 ) -> Result<String, String> {
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
     let id = manager.add_process(name, command, args, working_dir, false);
+    persist_config(&manager)?;
     Ok(id)
 }
 
@@ -180,7 +191,7 @@ pub async fn remove_process(
     manager.stop_process(&process_id).ok();
     manager.remove_process(&process_id);
 
-    Ok(())
+    persist_config(&manager)
 }
 
 #[tauri::command]
@@ -208,7 +219,7 @@ pub async fn update_process(
         }
     }
 
-    Ok(())
+    persist_config(&manager)
 }
 
 #[tauri::command]
@@ -274,15 +285,7 @@ pub async fn clear_logs(
 #[tauri::command]
 pub async fn save_config(state: State<'_, AppState>) -> Result<(), String> {
     let manager = state.manager.lock().map_err(|e| e.to_string())?;
-
-    let configs: Vec<ProcessConfig> = manager
-        .processes
-        .values()
-        .map(|p| p.to_config())
-        .collect();
-    drop(manager);
-
-    ConfigHandler::save_configs(&configs).map_err(|e| e.to_string())
+    persist_config(&manager)
 }
 
 #[tauri::command]
@@ -548,5 +551,6 @@ pub async fn terminal_add_process(
 
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
     let id = manager.add_process(name, exe, args, working_dir, false);
+    persist_config(&manager)?;
     Ok(id)
 }
