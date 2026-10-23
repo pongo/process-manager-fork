@@ -1,5 +1,6 @@
 use crate::types::*;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -150,7 +151,25 @@ impl ProcessManager {
             return Err("Process is already running".to_string());
         }
 
-        let mut cmd = Command::new(&process.command);
+        let mut executable = PathBuf::from(&process.command);
+        if executable.is_relative() {
+            if let Some(ref dir) = process.working_dir {
+                let working_dir = PathBuf::from(dir);
+                let working_dir = if working_dir.is_absolute() {
+                    working_dir
+                } else {
+                    std::env::current_dir()
+                        .map_err(|e| format!("Failed to resolve working directory: {}", e))?
+                        .join(working_dir)
+                };
+                let candidate = working_dir.join(&executable);
+                if candidate.is_file() {
+                    executable = candidate;
+                }
+            }
+        }
+
+        let mut cmd = Command::new(&executable);
         cmd.args(&process.args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
