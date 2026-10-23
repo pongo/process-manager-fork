@@ -11,14 +11,36 @@ use config_handler::ConfigHandler;
 use log_handler::LogHandler;
 use process_manager::ProcessManager;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use sysinfo;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    Emitter, Manager,
+    Manager, WebviewWindowBuilder,
 };
 
+fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show()?;
+        window.set_focus()?;
+        return Ok(());
+    }
+
+    let config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == "main")
+        .ok_or_else(|| tauri::Error::WindowNotFound)?;
+    let window = WebviewWindowBuilder::from_config(app, config)?.build()?;
+    window.show()?;
+    window.set_focus()?;
+    Ok(())
+}
+
 fn quit_app(app: &tauri::AppHandle) {
+    app.state::<AtomicBool>().store(true, Ordering::SeqCst);
     let windows = app.webview_windows();
     if windows.is_empty() {
         app.exit(0);
@@ -62,8 +84,17 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(app_state)
+        .manage(AtomicBool::new(false))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let configs = ConfigHandler::load_configs()?;
+            let state = app.state::<AppState>();
+            let mut manager = state.manager.lock().unwrap_or_else(|e| e.into_inner());
+            for config in configs {
+                let instance = process_manager::ProcessInstance::from_config(&config);
+                manager.processes.insert(instance.id.clone(), instance);
+            }
+            drop(manager);
             // Build system tray menu
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let hide = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
@@ -90,33 +121,33 @@ pub fn run() {
                         ..
                     } = event
                     {
-                        if let Some(w) = tray.app_handle().get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
+                        let _ = show_main_window(&tray.app_handle());
                     }
                 })
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.show();
-                            let _ = w.set_focus();
-                        }
+                        let _ = show_main_window(app);
                     }
                     "hide" => {
                         if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.hide();
+                            let _ = w.destroy();
                         }
                     }
                     "start_all" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.emit("app:start_all", ());
-                        }
+                        let app = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Err(error) = commands::start_all(app.state::<AppState>(), app.clone()).await {
+                                eprintln!("Failed to start all processes: {error}");
+                            }
+                        });
                     }
                     "stop_all" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            let _ = w.emit("app:stop_all", ());
-                        }
+                        let app = app.clone();
+                        tauri::async_runtime::spawn(async move {
+                            if let Err(error) = commands::stop_all(app.state::<AppState>(), app.clone()).await {
+                                eprintln!("Failed to stop all processes: {error}");
+                            }
+                        });
                     }
                     "quit" => {
                         quit_app(app);
@@ -129,8 +160,10 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
+                // Destroy the WebView2 instance while keeping the Rust process and tray alive.
+                // The tray recreates the window on the next Show/click action.
                 api.prevent_close();
+                let _ = window.destroy();
             }
         })
         .invoke_handler(tauri::generate_handler![
@@ -155,7 +188,14 @@ pub fn run() {
             commands::terminal_get_cwd,
             commands::terminal_add_process,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { api, code: None, .. } = event {
+                if !app.state::<AtomicBool>().load(Ordering::SeqCst) {
+                    api.prevent_exit();
+                }
+            }
+        });
 }
 

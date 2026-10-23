@@ -59,9 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useProcessStore } from '@/stores/processStore'
 import { useWindowActivity, windowActive } from '@/composables/useWindowActivity'
 import { usePolling } from '@/composables/usePolling'
@@ -107,28 +106,12 @@ usePolling(async () => store.updateUptimeClock(), () => windowActive.value && ru
 
 const minimize = () => win.minimize()
 const toggleMaximize = () => win.toggleMaximize()
-const hideToTray = () => win.hide()
-
-let unlistenStartAll: UnlistenFn | null = null
-let unlistenStopAll: UnlistenFn | null = null
+const hideToTray = () => win.close()
 
 onMounted(async () => {
-  try { await store.loadConfig() } catch { /* fresh install */ }
   await store.loadProcesses()
 
   ready.value = true
-
-  unlistenStartAll = await listen('app:start_all', async () => {
-    try { await store.startAll() } catch { /* ignore */ }
-  })
-  unlistenStopAll = await listen('app:stop_all', async () => {
-    try { await store.stopAll() } catch { /* ignore */ }
-  })
-})
-
-onUnmounted(() => {
-  unlistenStartAll?.()
-  unlistenStopAll?.()
 })
 </script>
 

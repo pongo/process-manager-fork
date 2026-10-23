@@ -10,7 +10,7 @@ use std::io::BufRead;
 use std::process::{ChildStderr, ChildStdout};
 use std::sync::{Arc, Mutex};
 use sysinfo::System;
-use tauri::{Emitter, State, WebviewWindow};
+use tauri::{AppHandle, Emitter, State};
 
 pub struct AppState {
     pub manager: Arc<Mutex<ProcessManager>>,
@@ -38,7 +38,7 @@ fn start_log_readers(
     stdout: ChildStdout,
     stderr: ChildStderr,
     log_handler: Arc<LogHandler>,
-    window: WebviewWindow,
+    window: AppHandle,
 ) {
     // --- stdout ---
     {
@@ -96,7 +96,7 @@ pub async fn get_processes(state: State<'_, AppState>) -> Result<Vec<ProcessStat
 pub async fn start_process(
     process_id: String,
     state: State<'_, AppState>,
-    window: WebviewWindow,
+    window: AppHandle,
 ) -> Result<u32, String> {
     let (pid, stdout, stderr) = {
         let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
@@ -123,7 +123,7 @@ pub async fn start_process(
 pub async fn stop_process(
     process_id: String,
     state: State<'_, AppState>,
-    window: WebviewWindow,
+    window: AppHandle,
 ) -> Result<(), String> {
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
 
@@ -144,7 +144,7 @@ pub async fn stop_process(
 pub async fn restart_process(
     process_id: String,
     state: State<'_, AppState>,
-    window: WebviewWindow,
+    window: AppHandle,
 ) -> Result<u32, String> {
     let (pid, stdout, stderr) = {
         let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
@@ -294,8 +294,10 @@ pub async fn load_config(state: State<'_, AppState>) -> Result<Vec<ProcessState>
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
 
     for config in configs {
-        let instance = crate::process_manager::ProcessInstance::from_config(&config);
-        manager.processes.insert(instance.id.clone(), instance);
+        if !manager.processes.contains_key(&config.id) {
+            let instance = crate::process_manager::ProcessInstance::from_config(&config);
+            manager.processes.insert(instance.id.clone(), instance);
+        }
     }
 
     Ok(manager.get_all_processes())
@@ -335,7 +337,7 @@ pub async fn set_auto_start(enable: bool) -> Result<(), String> {
 #[tauri::command]
 pub async fn start_all(
     state: State<'_, AppState>,
-    window: WebviewWindow,
+    window: AppHandle,
 ) -> Result<(), String> {
     let spawned = {
         let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
@@ -367,7 +369,7 @@ pub async fn start_all(
 }
 
 #[tauri::command]
-pub async fn stop_all(state: State<'_, AppState>, window: WebviewWindow) -> Result<(), String> {
+pub async fn stop_all(state: State<'_, AppState>, window: AppHandle) -> Result<(), String> {
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
 
     let process_ids: Vec<String> = manager.processes.keys().cloned().collect();
@@ -398,7 +400,7 @@ pub async fn terminal_run(
     command: String,
     job_id: String,
     state: State<'_, AppState>,
-    window: WebviewWindow,
+    window: AppHandle,
 ) -> Result<(), String> {
     // Grab current CWD for this session
     let cwd = {
