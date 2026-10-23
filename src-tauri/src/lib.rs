@@ -3,6 +3,8 @@ mod config_handler;
 mod log_handler;
 mod monitoring;
 mod process_manager;
+#[cfg(target_os = "windows")]
+mod process_job;
 mod terminal;
 mod types;
 
@@ -18,6 +20,12 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager, WebviewWindowBuilder,
 };
+
+#[derive(Default)]
+struct ExitState {
+    in_progress: AtomicBool,
+    allowed: AtomicBool,
+}
 
 fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
@@ -42,7 +50,42 @@ fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 fn quit_app(app: &tauri::AppHandle) {
-    app.state::<AtomicBool>().store(true, Ordering::SeqCst);
+    if app.state::<ExitState>().in_progress.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    let app = app.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let result = app.state::<AppState>().manager.lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .shutdown();
+        if let Err(error) = result {
+            app.state::<ExitState>().in_progress.store(false, Ordering::SeqCst);
+            report_process_error("Quit Failed", &error);
+            return;
+        }
+        let handle = app.clone();
+        if let Err(error) = app.run_on_main_thread(move || finish_quit(&handle)) {
+            app.state::<ExitState>().in_progress.store(false, Ordering::SeqCst);
+            report_process_error("Quit Failed", &error.to_string());
+        }
+    });
+}
+
+fn report_process_error(title: &str, error: &str) {
+    eprintln!("{title}: {error}");
+    #[cfg(target_os = "windows")]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+        let title: Vec<u16> = title.encode_utf16().chain(Some(0)).collect();
+        let message: Vec<u16> = error.encode_utf16().chain(Some(0)).collect();
+        unsafe {
+            MessageBoxW(std::ptr::null_mut(), message.as_ptr(), title.as_ptr(), MB_OK | MB_ICONERROR);
+        }
+    }
+}
+
+fn finish_quit(app: &tauri::AppHandle) {
+    app.state::<ExitState>().allowed.store(true, Ordering::SeqCst);
     let windows = app.webview_windows();
     if windows.is_empty() {
         app.exit(0);
@@ -86,7 +129,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(app_state)
-        .manage(AtomicBool::new(false))
+        .manage(ExitState::default())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let configs = ConfigHandler::load_configs()?;
@@ -170,7 +213,7 @@ pub fn run() {
                         let app = app.clone();
                         tauri::async_runtime::spawn(async move {
                             if let Err(error) = commands::stop_all(app.state::<AppState>(), app.clone()).await {
-                                eprintln!("Failed to stop all processes: {error}");
+                                report_process_error("Stop All Failed", &error);
                             }
                         });
                     }
@@ -216,7 +259,7 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::ExitRequested { api, code: None, .. } = event {
-                if !app.state::<AtomicBool>().load(Ordering::SeqCst) {
+                if !app.state::<ExitState>().allowed.load(Ordering::SeqCst) {
                     api.prevent_exit();
                 }
             }

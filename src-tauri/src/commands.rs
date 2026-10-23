@@ -188,8 +188,7 @@ pub async fn remove_process(
 ) -> Result<(), String> {
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
 
-    manager.stop_process(&process_id).ok();
-    manager.remove_process(&process_id);
+    manager.remove_process(&process_id)?;
 
     persist_config(&manager)
 }
@@ -365,20 +364,20 @@ pub async fn start_auto_start(
 #[tauri::command]
 pub async fn stop_all(state: State<'_, AppState>, window: AppHandle) -> Result<(), String> {
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
-
-    let process_ids: Vec<String> = manager.processes.keys().cloned().collect();
-    for process_id in process_ids {
-        manager.stop_process(&process_id).ok();
+    let result = manager.stop_all();
+    for process in manager.processes.values().filter(|p| {
+        matches!(p.status, crate::types::ProcessStatus::Stopped)
+    }) {
         let _ = window.emit(
             "process:status_changed",
             json!({
-                "id": process_id,
+                "id": process.id,
                 "status": "Stopped"
             }),
         );
     }
 
-    Ok(())
+    result
 }
 
 // ═══════════════════════════════════════════════════════════════

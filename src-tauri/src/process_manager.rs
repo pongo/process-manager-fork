@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 #[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
+use crate::process_job::ProcessJob;
 
 pub struct ProcessInstance {
     pub id: String,
@@ -17,6 +17,8 @@ pub struct ProcessInstance {
     pub args: Vec<String>,
     pub status: ProcessStatus,
     pub child: Option<Child>,
+    #[cfg(target_os = "windows")]
+    job: Option<ProcessJob>,
     pub pid: Option<u32>,
     pub auto_restart: bool,
     pub auto_start: bool,
@@ -35,6 +37,8 @@ impl ProcessInstance {
             args,
             status: ProcessStatus::Stopped,
             child: None,
+            #[cfg(target_os = "windows")]
+            job: None,
             pid: None,
             auto_restart,
             auto_start,
@@ -53,6 +57,8 @@ impl ProcessInstance {
             args: config.args.clone(),
             status: ProcessStatus::Stopped,
             child: None,
+            #[cfg(target_os = "windows")]
+            job: None,
             pid: None,
             auto_restart: config.auto_restart,
             auto_start: config.auto_start,
@@ -108,12 +114,14 @@ impl ProcessInstance {
 
 pub struct ProcessManager {
     pub processes: HashMap<String, ProcessInstance>,
+    shutting_down: bool,
 }
 
 impl ProcessManager {
     pub fn new() -> Self {
         ProcessManager {
             processes: HashMap::new(),
+            shutting_down: false,
         }
     }
 
@@ -133,8 +141,10 @@ impl ProcessManager {
         self.processes.get_mut(id)
     }
 
-    pub fn remove_process(&mut self, id: &str) -> Option<ProcessInstance> {
-        self.processes.remove(id)
+    pub fn remove_process(&mut self, id: &str) -> Result<(), String> {
+        self.stop_process(id)?;
+        self.processes.remove(id);
+        Ok(())
     }
 
     pub fn get_all_processes(&self) -> Vec<ProcessState> {
@@ -142,6 +152,9 @@ impl ProcessManager {
     }
 
     pub fn spawn_process(&mut self, id: &str) -> Result<(u32, ChildStdout, ChildStderr), String> {
+        if self.shutting_down {
+            return Err("Application is shutting down".to_string());
+        }
         let process = self
             .get_process_mut(id)
             .ok_or_else(|| "Process not found".to_string())?;
@@ -174,15 +187,19 @@ impl ProcessManager {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         
-        // Hide console window on Windows
-        #[cfg(target_os = "windows")]
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        
         if let Some(ref dir) = process.working_dir {
             cmd.current_dir(dir);
         }
 
-        match cmd.spawn() {
+        #[cfg(target_os = "windows")]
+        let spawned = ProcessJob::spawn(&mut cmd).map(|(child, job)| {
+            process.job = Some(job);
+            child
+        });
+        #[cfg(not(target_os = "windows"))]
+        let spawned = cmd.spawn();
+
+        match spawned {
             Ok(mut child) => {
                 let pid = child.id();
                 let stdout = child.stdout.take()
@@ -217,19 +234,59 @@ impl ProcessManager {
 
         process.should_restart.store(false, Ordering::SeqCst);
 
-        if let Some(mut child) = process.child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+        #[cfg(target_os = "windows")]
+        if let Some(job) = process.job.as_ref() {
+            job.stop().map_err(|e| format!("Failed to stop process tree: {e}"))?;
+        }
+        if let Some(child) = process.child.as_mut() {
+            #[cfg(not(target_os = "windows"))]
+            if child.try_wait().map_err(|e| e.to_string())?.is_none() {
+                child.kill().map_err(|e| format!("Failed to stop process: {e}"))?;
+            }
+            child.wait().map_err(|e| format!("Failed to wait for process: {e}"))?;
         }
 
+        process.child = None;
+        #[cfg(target_os = "windows")]
+        {
+            process.job = None;
+        }
         process.status = ProcessStatus::Stopped;
         process.pid = None;
+        process.start_time = None;
         Ok(())
     }
 
     pub fn restart_process(&mut self, id: &str) -> Result<(u32, ChildStdout, ChildStderr), String> {
+        if self.shutting_down {
+            return Err("Application is shutting down".to_string());
+        }
         self.stop_process(id)?;
         self.spawn_process(id)
+    }
+
+    pub fn stop_all(&mut self) -> Result<(), String> {
+        let ids: Vec<_> = self.processes.keys().cloned().collect();
+        let mut errors = Vec::new();
+        for id in ids {
+            if let Err(error) = self.stop_process(&id) {
+                errors.push(format!("{}: {error}", self.processes[&id].name));
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("\n"))
+        }
+    }
+
+    pub fn shutdown(&mut self) -> Result<(), String> {
+        self.shutting_down = true;
+        let result = self.stop_all();
+        if result.is_err() {
+            self.shutting_down = false;
+        }
+        result
     }
 }
 
@@ -238,3 +295,7 @@ impl Default for ProcessManager {
         Self::new()
     }
 }
+
+#[cfg(all(test, target_os = "windows"))]
+#[path = "process_manager_tests.rs"]
+mod tests;
