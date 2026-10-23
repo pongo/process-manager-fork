@@ -337,6 +337,31 @@ pub async fn start_all(
     Ok(())
 }
 
+/// Start only processes configured to launch when the app opens.
+pub async fn start_auto_start(
+    state: State<'_, AppState>,
+    window: AppHandle,
+) -> Result<(), String> {
+    let process_ids: Vec<String> = {
+        let manager = state.manager.lock().map_err(|e| e.to_string())?;
+        manager
+            .processes
+            .values()
+            .filter(|process| process.auto_start)
+            .map(|process| process.id.clone())
+            .collect()
+    };
+
+    for process_id in process_ids {
+        if let Err(error) = start_process(process_id.clone(), state.clone(), window.clone()).await {
+            let _ = state.log_handler.write_log(&process_id, "stderr", &error);
+            eprintln!("Failed to auto-start process {process_id}: {error}");
+        }
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn stop_all(state: State<'_, AppState>, window: AppHandle) -> Result<(), String> {
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;

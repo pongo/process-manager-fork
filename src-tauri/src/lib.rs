@@ -107,6 +107,18 @@ pub fn run() {
                 }
             }
 
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = commands::start_auto_start(
+                    app_handle.state::<AppState>(),
+                    app_handle.clone(),
+                )
+                .await
+                {
+                    eprintln!("Failed to start configured processes: {error}");
+                }
+            });
+
             // Build system tray menu
             let show = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
             let hide = MenuItem::with_id(app, "hide", "Hide", true, None::<&str>)?;
