@@ -38,15 +38,10 @@
             Restart
           </button>
           <button :class="['hdr-btn', 'settings-btn', showSettings ? 'active' : '']" @click="showSettings = !showSettings">
-            <svg viewBox="0 0 12 12" width="10" height="10" fill="none">
-              <circle cx="6" cy="6" r="1.5" stroke="currentColor" stroke-width="1.3"/>
-              <path d="M6 1v1.5M6 9.5V11M11 6H9.5M2.5 6H1M9.2 2.8l-1.1 1.1M3.9 8.1L2.8 9.2M9.2 9.2L8.1 8.1M3.9 3.9L2.8 2.8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-            </svg>
+            Settings
           </button>
           <button class="hdr-btn close-btn" @click="closePanel" title="Close">
-            <svg viewBox="0 0 12 12" width="10" height="10" fill="none">
-              <path d="M2 2l8 8M10 2L2 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            Close
           </button>
         </div>
       </div>
@@ -492,9 +487,9 @@ function parseAnsi(raw: string): string {
 .hdr-btn.start   { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
 .hdr-btn.stop    { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 .hdr-btn.restart { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
-.hdr-btn.settings-btn { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border-control); width: 32px; padding: 5px; justify-content: center; }
-.hdr-btn.settings-btn.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); }
-.hdr-btn.close-btn { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border-control); width: 32px; padding: 5px; justify-content: center; }
+.hdr-btn.settings-btn,
+.hdr-btn.close-btn { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border-control); }
+.hdr-btn.settings-btn.active { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--border-control-hover); }
 .hdr-btn.close-btn:hover { color: var(--text-primary); }
 
 /* ── Metrics ── */
