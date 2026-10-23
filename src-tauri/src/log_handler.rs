@@ -43,25 +43,14 @@ impl LogHandler {
         let mut logs: Vec<LogEntry> = content
             .lines()
             .filter_map(|line| {
-                if line.is_empty() {
-                    return None;
-                }
-                
                 // Parse format: [timestamp] [level] message
-                if let Some(timestamp_end) = line.find(']') {
-                    if let Some(level_end) = line[timestamp_end + 1..].find(']') {
-                        let timestamp = line[1..timestamp_end].to_string();
-                        let level = line[timestamp_end + 2..timestamp_end + 2 + level_end].trim().to_string();
-                        let message = line[timestamp_end + 3 + level_end..].trim().to_string();
-                        
-                        return Some(LogEntry {
-                            timestamp,
-                            level,
-                            message,
-                        });
-                    }
-                }
-                None
+                let (timestamp, rest) = line.strip_prefix('[')?.split_once("] [")?;
+                let (level, message) = rest.split_once("] ")?;
+                Some(LogEntry {
+                    timestamp: timestamp.to_string(),
+                    level: level.to_string(),
+                    message: message.to_string(),
+                })
             })
             .collect();
 
@@ -101,5 +90,36 @@ impl LogHandler {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LogHandler;
+
+    #[test]
+    fn reading_saved_logs_preserves_levels_and_messages() {
+        let log_dir = std::env::temp_dir().join(format!("pm-logs-{}", uuid::Uuid::new_v4()));
+        let handler = LogHandler::new(log_dir.clone()).unwrap();
+        let messages = [
+            ("stdout", "Server listening on http://127.0.0.1:53680/"),
+            ("stderr", "Ignoring unsupported file: inputs 2026-09-30.7z"),
+            ("stdout", "  [nested] message with trailing spaces  "),
+            ("stdout", ""),
+        ];
+
+        for (level, message) in messages {
+            handler.write_log("process", level, message).unwrap();
+        }
+
+        let logs = handler.read_logs("process", None).unwrap();
+        std::fs::remove_dir_all(log_dir).unwrap();
+
+        assert_eq!(logs.len(), messages.len());
+        for (log, (level, message)) in logs.iter().zip(messages) {
+            assert_eq!(log.level, level);
+            assert_eq!(log.message, message);
+            assert!(!log.timestamp.is_empty());
+        }
     }
 }
