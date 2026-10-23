@@ -59,7 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
+import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useProcessStore } from '@/stores/processStore'
 import { useWindowActivity, windowActive } from '@/composables/useWindowActivity'
@@ -109,9 +110,18 @@ const toggleMaximize = () => win.toggleMaximize()
 const hideToTray = () => win.close()
 
 onMounted(async () => {
-  await store.loadProcesses()
-
-  ready.value = true
+  try {
+    await store.loadProcesses()
+    ready.value = true
+  } finally {
+    await nextTick()
+    // Allow the initial Vue render to paint before revealing the native window.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        invoke('main_window_ready').catch(console.error)
+      })
+    })
+  }
 })
 </script>
 

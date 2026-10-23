@@ -25,8 +25,32 @@ struct ExitState {
     allowed: AtomicBool,
 }
 
+#[derive(Default)]
+struct WindowState {
+    ready: bool,
+    show_requested: bool,
+}
+
+#[tauri::command]
+fn main_window_ready(window: tauri::WebviewWindow) -> tauri::Result<()> {
+    let state = window.state::<std::sync::Mutex<WindowState>>();
+    let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+    state.ready = true;
+    if state.show_requested {
+        window.show()?;
+        window.set_focus()?;
+    }
+    Ok(())
+}
+
 fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
+    let state = app.state::<std::sync::Mutex<WindowState>>();
+    let mut state = state.lock().unwrap_or_else(|e| e.into_inner());
+    state.show_requested = true;
     if let Some(window) = app.get_webview_window("main") {
+        if !state.ready {
+            return Ok(());
+        }
         window.unminimize()?;
         window.maximize()?;
         window.show()?;
@@ -41,9 +65,8 @@ fn show_main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
         .iter()
         .find(|window| window.label == "main")
         .ok_or_else(|| tauri::Error::WindowNotFound)?;
-    let window = WebviewWindowBuilder::from_config(app, config)?.build()?;
-    window.show()?;
-    window.set_focus()?;
+    state.ready = false;
+    WebviewWindowBuilder::from_config(app, config)?.build()?;
     Ok(())
 }
 
@@ -128,6 +151,10 @@ pub fn run() {
     tauri::Builder::default()
         .manage(app_state)
         .manage(ExitState::default())
+        .manage(std::sync::Mutex::new(WindowState {
+            ready: false,
+            show_requested: !std::env::args().any(|arg| arg == "--start-in-tray"),
+        }))
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let configs = ConfigHandler::load_configs()?;
@@ -138,15 +165,6 @@ pub fn run() {
                 manager.processes.insert(instance.id.clone(), instance);
             }
             drop(manager);
-
-            // Keep the window hidden when launched with --start-in-tray, otherwise show it.
-            let start_in_tray = std::env::args().any(|arg| arg == "--start-in-tray");
-            if !start_in_tray {
-                if let Some(window) = app.get_webview_window("main") {
-                    window.show()?;
-                    window.set_focus()?;
-                }
-            }
 
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -233,6 +251,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            main_window_ready,
             commands::get_processes,
             commands::start_process,
             commands::stop_process,
