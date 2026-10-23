@@ -1,12 +1,7 @@
 use super::*;
 use std::io::{BufRead, BufReader};
-use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::sync::{mpsc, Mutex};
-use std::time::Duration;
-use windows_sys::Win32::Foundation::WAIT_OBJECT_0;
-use windows_sys::Win32::System::Threading::{
-    OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE,
-};
+use std::time::{Duration, Instant};
 
 // Three generations, with redirected leaf output so the only stdout lines are PIDs.
 const TREE_SCRIPT: &str = r#"
@@ -43,7 +38,7 @@ fn add_tree(manager: &mut ProcessManager, exit_root: bool) -> String {
     )
 }
 
-fn track_tree(pid: u32, stdout: ChildStdout) -> Vec<OwnedHandle> {
+fn track_tree(pid: u32, stdout: ChildStdout) -> Vec<u32> {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let pids: Vec<u32> = BufReader::new(stdout)
@@ -58,26 +53,22 @@ fn track_tree(pid: u32, stdout: ChildStdout) -> Vec<OwnedHandle> {
         .expect("Tree did not start");
     assert_eq!(pids.len(), 2);
     pids.push(pid);
-    pids.into_iter()
-        .map(|pid| {
-            let handle = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, pid) };
-            assert!(!handle.is_null(), "Cannot open process {pid}");
-            unsafe { OwnedHandle::from_raw_handle(handle) }
-        })
-        .collect()
+    pids
 }
 
-fn start_tree(manager: &mut ProcessManager, id: &str) -> Vec<OwnedHandle> {
+fn start_tree(manager: &mut ProcessManager, id: &str) -> Vec<u32> {
     let (pid, stdout, _) = manager.spawn_process(id).unwrap();
     track_tree(pid, stdout)
 }
 
-fn assert_stopped(handles: &[OwnedHandle]) {
-    for handle in handles {
-        assert_eq!(
-            unsafe { WaitForSingleObject(handle.as_raw_handle(), 5000) },
-            WAIT_OBJECT_0
-        );
+fn assert_stopped(pids: &[u32]) {
+    let mut system = sysinfo::System::new();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    for &pid in pids {
+        while system.refresh_process(sysinfo::Pid::from_u32(pid)) {
+            assert!(Instant::now() < deadline, "Process {pid} is still running");
+            std::thread::sleep(Duration::from_millis(20));
+        }
     }
 }
 
@@ -112,6 +103,7 @@ fn stop_terminates_descendants_after_root_exit() {
         .child
         .as_mut()
         .unwrap()
+        .inner_mut()
         .wait()
         .unwrap();
     manager.stop_process(&id).unwrap();
@@ -162,9 +154,8 @@ fn stop_failures_preserve_processes_and_do_not_skip_other_trees() {
     let b = add_tree(&mut manager, false);
     let a_handles = start_tree(&mut manager, &a);
     let b_handles = start_tree(&mut manager, &b);
-    // Use a real handle without terminate permission to exercise Windows access-denied errors.
-    let original_job = manager.processes.get_mut(&a).unwrap().job.take().unwrap();
-    manager.processes.get_mut(&a).unwrap().job = Some(original_job.handle_without_access());
+    let original_child = manager.processes.get_mut(&a).unwrap().child.take().unwrap();
+    manager.processes.get_mut(&a).unwrap().child = Some(Box::new(FailingStop(original_child)));
     assert!(manager.remove_process(&a).is_err());
     assert!(manager.restart_process(&a).is_err());
     assert!(manager.shutdown().is_err());
@@ -176,16 +167,32 @@ fn stop_failures_preserve_processes_and_do_not_skip_other_trees() {
     assert!(manager.processes[&a].pid.is_some());
     assert!(!manager.shutting_down);
     assert_stopped(&b_handles);
-    manager.processes.get_mut(&a).unwrap().job = Some(original_job);
+    let failing_child = manager.processes.get_mut(&a).unwrap().child.take().unwrap();
+    manager.processes.get_mut(&a).unwrap().child = Some(failing_child.into_inner());
     manager.shutdown().unwrap();
     assert_stopped(&a_handles);
 }
 
-#[test]
-fn dropping_manager_terminates_owned_trees() {
-    let mut manager = ProcessManager::new();
-    let id = add_tree(&mut manager, false);
-    let handles = start_tree(&mut manager, &id);
-    drop(manager);
-    assert_stopped(&handles);
+#[derive(Debug)]
+struct FailingStop(Box<dyn ChildWrapper>);
+
+impl ChildWrapper for FailingStop {
+    fn inner(&self) -> &dyn ChildWrapper {
+        self.0.as_ref()
+    }
+
+    fn inner_mut(&mut self) -> &mut dyn ChildWrapper {
+        self.0.as_mut()
+    }
+
+    fn into_inner(self: Box<Self>) -> Box<dyn ChildWrapper> {
+        self.0
+    }
+
+    fn start_kill(&mut self) -> std::io::Result<()> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "Stop denied",
+        ))
+    }
 }

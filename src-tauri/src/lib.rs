@@ -3,8 +3,6 @@ mod config_handler;
 mod log_handler;
 mod monitoring;
 mod process_manager;
-#[cfg(target_os = "windows")]
-mod process_job;
 mod terminal;
 mod types;
 

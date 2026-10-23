@@ -1,14 +1,15 @@
 use crate::types::*;
+use process_wrap::std::{ChildWrapper, CommandWrap};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::{Child, ChildStderr, ChildStdout, Command, Stdio};
+use std::process::{ChildStderr, ChildStdout, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 #[cfg(target_os = "windows")]
-use crate::process_job::ProcessJob;
+use process_wrap::std::{CreationFlags, JobObject};
 
 pub struct ProcessInstance {
     pub id: String,
@@ -16,9 +17,7 @@ pub struct ProcessInstance {
     pub command: String,
     pub args: Vec<String>,
     pub status: ProcessStatus,
-    pub child: Option<Child>,
-    #[cfg(target_os = "windows")]
-    job: Option<ProcessJob>,
+    pub child: Option<Box<dyn ChildWrapper>>,
     pub pid: Option<u32>,
     pub auto_restart: bool,
     pub auto_start: bool,
@@ -37,8 +36,6 @@ impl ProcessInstance {
             args,
             status: ProcessStatus::Stopped,
             child: None,
-            #[cfg(target_os = "windows")]
-            job: None,
             pid: None,
             auto_restart,
             auto_start,
@@ -57,8 +54,6 @@ impl ProcessInstance {
             args: config.args.clone(),
             status: ProcessStatus::Stopped,
             child: None,
-            #[cfg(target_os = "windows")]
-            job: None,
             pid: None,
             auto_restart: config.auto_restart,
             auto_start: config.auto_start,
@@ -191,20 +186,20 @@ impl ProcessManager {
             cmd.current_dir(dir);
         }
 
+        let mut command = CommandWrap::from(cmd);
         #[cfg(target_os = "windows")]
-        let spawned = ProcessJob::spawn(&mut cmd).map(|(child, job)| {
-            process.job = Some(job);
-            child
-        });
-        #[cfg(not(target_os = "windows"))]
-        let spawned = cmd.spawn();
+        command
+            .wrap(CreationFlags(
+                windows::Win32::System::Threading::CREATE_NO_WINDOW,
+            ))
+            .wrap(JobObject);
 
-        match spawned {
+        match command.spawn() {
             Ok(mut child) => {
                 let pid = child.id();
-                let stdout = child.stdout.take()
+                let stdout = child.stdout().take()
                     .ok_or_else(|| "Failed to capture stdout".to_string())?;
-                let stderr = child.stderr.take()
+                let stderr = child.stderr().take()
                     .ok_or_else(|| "Failed to capture stderr".to_string())?;
                 process.pid = Some(pid);
                 process.status = ProcessStatus::Running;
@@ -234,23 +229,13 @@ impl ProcessManager {
 
         process.should_restart.store(false, Ordering::SeqCst);
 
-        #[cfg(target_os = "windows")]
-        if let Some(job) = process.job.as_ref() {
-            job.stop().map_err(|e| format!("Failed to stop process tree: {e}"))?;
-        }
         if let Some(child) = process.child.as_mut() {
-            #[cfg(not(target_os = "windows"))]
-            if child.try_wait().map_err(|e| e.to_string())?.is_none() {
-                child.kill().map_err(|e| format!("Failed to stop process: {e}"))?;
-            }
-            child.wait().map_err(|e| format!("Failed to wait for process: {e}"))?;
+            child.start_kill().map_err(|e| format!("Failed to stop process tree: {e}"))?;
+            // Stop through the wrapper; wait only for its root process.
+            child.inner_mut().wait().map_err(|e| format!("Failed to wait for process: {e}"))?;
         }
 
         process.child = None;
-        #[cfg(target_os = "windows")]
-        {
-            process.job = None;
-        }
         process.status = ProcessStatus::Stopped;
         process.pid = None;
         process.start_time = None;
