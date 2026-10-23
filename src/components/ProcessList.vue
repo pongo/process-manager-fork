@@ -249,13 +249,21 @@ const formatUptime = (ms: number) => {
   width: 26px; height: 26px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 6px; cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-  border: 1px solid transparent;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-control);
 }
-.icon-btn.success { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
-.icon-btn.success:hover { background: var(--success-bg-hover); border-color: var(--success-border); }
-.icon-btn.danger  { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
-.icon-btn.danger:hover  { background: var(--danger-bg-hover); border-color: var(--danger-border); }
+.icon-btn.success:hover {
+  background: var(--success-bg-hover);
+  color: var(--success);
+  border-color: var(--success-border);
+}
+.icon-btn.danger:hover {
+  background: var(--danger-bg-hover);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
 
 /* ── Search ── */
 .search-bar {
