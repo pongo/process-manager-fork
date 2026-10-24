@@ -73,9 +73,9 @@
               <span class="p-name">{{ p.name }}</span>
               <span :class="['status-pill', `pill-${p.status.toLowerCase()}`]">{{ p.status }}</span>
             </div>
-            <div class="row-bottom">
+            <div v-if="p.status === 'Crashed'" class="row-bottom">
               <span class="p-cmd">{{ p.command }}{{ p.args?.length ? ' ' + p.args.join(' ') : '' }}</span>
-              <span v-if="p.status === 'Crashed' && p.crashCount" class="crash-badge">{{ p.crashCount }}x</span>
+              <span v-if="p.crashCount" class="crash-badge">{{ p.crashCount }}x</span>
             </div>
             <div v-if="p.pid && p.status === 'Running'" class="row-meta">
               PID {{ p.pid }}&nbsp; · &nbsp;{{ formatUptime(store.getUptime(p)) }}
@@ -83,7 +83,7 @@
           </div>
         </div>
 
-        <!-- Action bar (hover/selected) -->
+        <!-- Persistent action bar -->
         <div class="row-actions" @click.stop>
           <button v-if="p.status !== 'Running'" class="ra-btn start" @click="startProcess(p.id)" title="Start">
             <svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 1.5l7 3.5-7 3.5V1.5z" fill="currentColor"/></svg>
@@ -98,11 +98,13 @@
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
             </svg>
+            Restart
           </button>
           <button class="ra-btn remove" @click="removeProcess(p.id)" title="Remove">
             <svg viewBox="0 0 10 12" width="8" height="9" fill="none">
               <path d="M1 3h8M3 3V1.5h4V3M2 3l.5 7h5L8 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
+            Remove
           </button>
         </div>
       </div>
@@ -382,27 +384,29 @@ const formatUptime = (ms: number) => {
 
 /* ── Row actions ── */
 .row-actions {
-  display: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: 4px;
   padding: 0 12px 9px 14px;
 }
-.process-row:hover .row-actions,
-.process-row.selected .row-actions { display: flex; }
-
 .ra-btn {
-  display: flex; align-items: center; gap: 4px;
-  padding: 3px 9px;
-  border: 1px solid transparent; border-radius: 5px;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  min-width: 0;
+  height: 28px;
+  padding: 3px 6px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-control); border-radius: 5px;
   cursor: pointer; font-size: var(--font-size-small); font-weight: 600;
-  transition: opacity 0.1s, filter 0.1s;
+  white-space: nowrap;
+  transition: background 0.1s, border-color 0.1s;
 }
-.ra-btn:hover { filter: brightness(1.15); }
-.ra-btn.start   { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+.ra-btn svg { flex-shrink: 0; }
+.ra-btn:hover { background: var(--bg-hover); border-color: var(--border-control-hover); }
+.ra-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ra-btn.stop    { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
-.ra-btn.restart { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); padding: 3px 7px; }
-.ra-btn.remove  { background: var(--bg-surface); color: var(--text-muted); border-color: var(--border); padding: 3px 7px; }
-.ra-btn.remove:hover { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); opacity: 1; }
+.ra-btn.stop:hover { background: var(--danger-bg-hover); }
 
 /* ── Footer ── */
 .sidebar-footer {
