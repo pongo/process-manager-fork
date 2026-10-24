@@ -37,6 +37,9 @@
             </svg>
             Restart
           </button>
+          <button class="hdr-btn remove-btn" @click="removeProcess">
+            Remove
+          </button>
           <button :class="['hdr-btn', 'settings-btn', showSettings ? 'active' : '']" @click="showSettings = !showSettings">
             Settings
           </button>
@@ -278,6 +281,19 @@ const restartProcess = async () => {
   catch (e) { await openAlert('Restart Failed', String(e)) }
 }
 
+const removeProcess = async () => {
+  const p = proc.value
+  if (!p) return
+  const ok = await openConfirm(
+    'Remove Process',
+    `Remove "${p.name}"? This cannot be undone.`,
+    { type: 'danger', confirmLabel: 'Remove', cancelLabel: 'Cancel' }
+  )
+  if (!ok) return
+  try { await store.removeProcess(p.id) }
+  catch (e) { await openAlert('Remove Failed', String(e)) }
+}
+
 const closePanel = () => {
   store.selectedProcessId = null
 }
@@ -483,7 +499,8 @@ function parseAnsi(raw: string): string {
 .hdr-btn.stop    { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 .hdr-btn.restart { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
 .hdr-btn.settings-btn,
-.hdr-btn.close-btn { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border-control); }
+.hdr-btn.close-btn,
+.hdr-btn.remove-btn { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border-control); }
 .hdr-btn.settings-btn.active { background: var(--bg-hover); color: var(--text-secondary); border-color: var(--border-control-hover); }
 .hdr-btn.close-btn:hover { color: var(--text-primary); }
 

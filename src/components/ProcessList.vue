@@ -105,12 +105,6 @@
             </svg>
             Restart
           </button>
-          <button class="ra-btn remove" @click.stop="removeProcess(p.id)" title="Remove">
-            <svg viewBox="0 0 10 12" width="8" height="9" fill="none">
-              <path d="M1 3h8M3 3V1.5h4V3M2 3l.5 7h5L8 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Remove
-          </button>
         </div>
       </div>
 
@@ -145,7 +139,7 @@ import { usePolling } from '@/composables/usePolling'
 import AddProcessModal from '@/components/AddProcessModal.vue'
 
 const store = useProcessStore()
-const { openConfirm, openAlert } = useDialog()
+const { openAlert } = useDialog()
 
 const search = ref('')
 const showAddModal = ref(false)
@@ -198,17 +192,6 @@ const stopProcess = async (id: string) => {
 const restartProcess = async (id: string) => {
   try { await store.restartProcess(id) }
   catch (e) { await openAlert('Restart Failed', String(e)) }
-}
-const removeProcess = async (id: string) => {
-  const p = store.processes.find((p: any) => p.id === id)
-  const ok = await openConfirm(
-    'Remove Process',
-    `Remove "${p?.name}"? This cannot be undone.`,
-    { type: 'danger', confirmLabel: 'Remove', cancelLabel: 'Cancel' }
-  )
-  if (!ok) return
-  try { await store.removeProcess(id) }
-  catch (e) { await openAlert('Remove Failed', String(e)) }
 }
 const startAllProcesses = async () => {
   try { await store.startAll() }
@@ -409,7 +392,7 @@ const stopAllProcesses = async () => {
 /* ── Row actions ── */
 .row-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   gap: 4px;
   padding: 0 12px 9px 14px;
@@ -432,7 +415,6 @@ const stopAllProcesses = async () => {
 .ra-btn.stop    { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 .ra-btn.stop:hover { background: var(--danger-bg-hover); }
 
-.ra-btn.remove,
 .process-row:not(.row-running) .ra-btn.restart {
   visibility: hidden;
 }
@@ -442,7 +424,6 @@ const stopAllProcesses = async () => {
 }
 
 @media (hover: none) {
-  .ra-btn.remove,
   .process-row:not(.row-running) .ra-btn.restart {
     visibility: visible;
   }
