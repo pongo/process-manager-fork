@@ -77,11 +77,6 @@
               <span class="p-cmd">{{ p.command }}{{ p.args?.length ? ' ' + p.args.join(' ') : '' }}</span>
               <span v-if="p.crashCount" class="crash-badge">{{ p.crashCount }}x</span>
             </div>
-            <div class="row-meta" :class="{ 'meta-hidden': !p.pid || p.status !== 'Running' }">
-              <template v-if="p.pid && p.status === 'Running'">
-                PID {{ p.pid }}&nbsp; · &nbsp;{{ formatUptime(store.getUptime(p)) }}
-              </template>
-            </div>
           </div>
         </div>
 
@@ -198,12 +193,6 @@ const stopAllProcesses = async () => {
   catch (e) { await openAlert('Stop All Failed', String(e)) }
 }
 
-const formatUptime = (ms: number) => {
-  const s = Math.floor(ms / 1000)
-  if (s < 60) return `${s}s`
-  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`
-  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`
-}
 </script>
 
 <style scoped>
@@ -376,16 +365,6 @@ const formatUptime = (ms: number) => {
   background: var(--danger-bg); border: 1px solid var(--danger-border);
   padding: 0 5px; border-radius: 10px; flex-shrink: 0;
 }
-
-.row-meta {
-  margin-top: 4px; font-size: var(--font-size-small);
-  line-height: 1.4;
-  min-height: 1.4em;
-  color: var(--text-muted);
-  font-family: 'Cascadia Code', 'Consolas', monospace;
-}
-.row-meta.meta-hidden { visibility: hidden; }
-.process-row.selected .row-meta { color: var(--text-secondary); }
 
 /* ── Row actions ── */
 .row-actions {
