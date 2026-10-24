@@ -312,8 +312,7 @@ const stopAllProcesses = async () => {
 .row-content {
   display: flex;
   align-items: stretch;
-  padding: 10px 12px 10px 0;
-  min-height: 52px;
+  padding: 10px 12px 6px 0;
 }
 .row-indicator {
   width: 3px;
@@ -330,7 +329,7 @@ const stopAllProcesses = async () => {
 
 .row-body { flex: 1; min-width: 0; }
 .row-top {
-  display: flex; align-items: center; gap: 7px; margin-bottom: 3px;
+  display: flex; align-items: center; gap: 7px;
 }
 .p-name {
   flex: 1; font-size: var(--font-size-body); font-weight: 600;
@@ -350,7 +349,7 @@ const stopAllProcesses = async () => {
 .pill-stopped { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border-control); }
 .pill-crashed { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 
-.row-bottom { display: flex; align-items: center; gap: 6px; }
+.row-bottom { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
 .p-cmd {
   font-size: var(--font-size-small); color: var(--text-muted);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
