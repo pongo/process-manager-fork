@@ -83,24 +83,24 @@
           </div>
         </div>
 
-        <!-- Persistent action bar -->
-        <div class="row-actions" @click.stop>
-          <button v-if="p.status !== 'Running'" class="ra-btn start" @click="startProcess(p.id)" title="Start">
+        <!-- Reserved action slots prevent layout shifts on hover. -->
+        <div class="row-actions">
+          <button v-if="p.status !== 'Running'" class="ra-btn start" @click.stop="startProcess(p.id)" title="Start">
             <svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 1.5l7 3.5-7 3.5V1.5z" fill="currentColor"/></svg>
             Start
           </button>
-          <button v-if="p.status === 'Running'" class="ra-btn stop" @click="stopProcess(p.id)" title="Stop">
+          <button v-if="p.status === 'Running'" class="ra-btn stop" @click.stop="stopProcess(p.id)" title="Stop">
             <svg viewBox="0 0 10 10" width="8" height="8"><rect x="1.5" y="1.5" width="7" height="7" rx="1" fill="currentColor"/></svg>
             Stop
           </button>
-          <button class="ra-btn restart" @click="restartProcess(p.id)" title="Restart">
+          <button class="ra-btn restart" @click.stop="restartProcess(p.id)" title="Restart">
             <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
               <path d="M3 3v5h5"/>
             </svg>
             Restart
           </button>
-          <button class="ra-btn remove" @click="removeProcess(p.id)" title="Remove">
+          <button class="ra-btn remove" @click.stop="removeProcess(p.id)" title="Remove">
             <svg viewBox="0 0 10 12" width="8" height="9" fill="none">
               <path d="M1 3h8M3 3V1.5h4V3M2 3l.5 7h5L8 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -407,6 +407,22 @@ const formatUptime = (ms: number) => {
 .ra-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ra-btn.stop    { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
 .ra-btn.stop:hover { background: var(--danger-bg-hover); }
+
+.ra-btn.remove,
+.process-row:not(.row-running) .ra-btn.restart {
+  visibility: hidden;
+}
+.process-row:hover .ra-btn,
+.process-row:focus-within .ra-btn {
+  visibility: visible;
+}
+
+@media (hover: none) {
+  .ra-btn.remove,
+  .process-row:not(.row-running) .ra-btn.restart {
+    visibility: visible;
+  }
+}
 
 /* ── Footer ── */
 .sidebar-footer {
