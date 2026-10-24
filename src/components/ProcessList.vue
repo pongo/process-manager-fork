@@ -77,6 +77,14 @@
               <span class="p-cmd">{{ p.command }}{{ p.args?.length ? ' ' + p.args.join(' ') : '' }}</span>
               <span v-if="p.crashCount" class="crash-badge">{{ p.crashCount }}x</span>
             </div>
+            <div class="row-meta" :class="{ 'meta-hidden': p.status !== 'Running' }">
+              <template v-if="p.status === 'Running'">
+                <span>CPU {{ store.getProcessMetrics(p.id).cpuPercent.toFixed(1) }}%</span>
+                <span class="meta-separator">·</span>
+                <span>Memory {{ store.getProcessMetrics(p.id).memoryMb }} MB</span>
+              </template>
+              <template v-else>—</template>
+            </div>
           </div>
         </div>
 
@@ -132,6 +140,8 @@
 import { ref, computed } from 'vue'
 import { useProcessStore } from '@/stores/processStore'
 import { useDialog } from '@/composables/useDialog'
+import { windowActive } from '@/composables/useWindowActivity'
+import { usePolling } from '@/composables/usePolling'
 import AddProcessModal from '@/components/AddProcessModal.vue'
 
 const store = useProcessStore()
@@ -139,6 +149,22 @@ const { openConfirm, openAlert } = useDialog()
 
 const search = ref('')
 const showAddModal = ref(false)
+
+const metricsTarget = computed(() => {
+  if (!windowActive.value) return ''
+  return store.processes
+    .filter((p) => p.status === 'Running' && p.pid)
+    .map((p) => `${p.id}:${p.pid}`)
+    .join('|')
+})
+
+usePolling(async () => {
+  await Promise.all(
+    store.processes
+      .filter((p) => p.status === 'Running' && p.pid)
+      .map((p) => store.updateMetrics(p.id))
+  )
+}, metricsTarget)
 
 const runningCount = computed(() =>
   store.processes.filter((p: any) => p.status === 'Running').length
@@ -358,6 +384,21 @@ const stopAllProcesses = async () => {
 }
 .process-row:hover .p-cmd,
 .process-row.selected .p-cmd { color: var(--text-secondary); }
+
+.row-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+  min-height: 1.4em;
+  color: var(--text-muted);
+  font-size: var(--font-size-small);
+  line-height: 1.4;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+}
+.row-meta.meta-hidden { visibility: hidden; }
+.process-row.selected .row-meta { color: var(--text-secondary); }
+.meta-separator { color: var(--border-control-hover); }
 
 .crash-badge {
   font-size: var(--font-size-small); font-weight: 700; color: var(--danger);
