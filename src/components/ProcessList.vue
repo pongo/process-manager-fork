@@ -77,8 +77,10 @@
               <span class="p-cmd">{{ p.command }}{{ p.args?.length ? ' ' + p.args.join(' ') : '' }}</span>
               <span v-if="p.crashCount" class="crash-badge">{{ p.crashCount }}x</span>
             </div>
-            <div v-if="p.pid && p.status === 'Running'" class="row-meta">
-              PID {{ p.pid }}&nbsp; · &nbsp;{{ formatUptime(store.getUptime(p)) }}
+            <div class="row-meta" :class="{ 'meta-hidden': !p.pid || p.status !== 'Running' }">
+              <template v-if="p.pid && p.status === 'Running'">
+                PID {{ p.pid }}&nbsp; · &nbsp;{{ formatUptime(store.getUptime(p)) }}
+              </template>
             </div>
           </div>
         </div>
@@ -377,9 +379,12 @@ const formatUptime = (ms: number) => {
 
 .row-meta {
   margin-top: 4px; font-size: var(--font-size-small);
+  line-height: 1.4;
+  min-height: 1.4em;
   color: var(--text-muted);
   font-family: 'Cascadia Code', 'Consolas', monospace;
 }
+.row-meta.meta-hidden { visibility: hidden; }
 .process-row.selected .row-meta { color: var(--text-secondary); }
 
 /* ── Row actions ── */
