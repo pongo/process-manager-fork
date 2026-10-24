@@ -12,6 +12,7 @@ export function useWindowActivity() {
   let revision = 0
 
   const update = async () => {
+    if (disposed) return
     const current = ++revision
     if (document.hidden) active.value = false
     try {
@@ -26,13 +27,19 @@ export function useWindowActivity() {
 
   onMounted(async () => {
     document.addEventListener('visibilitychange', update)
+    await update()
     for (const subscribe of [
       () => win.onResized(update),
       () => win.onFocusChanged(update),
     ]) {
-      const unlisten = await subscribe()
-      if (disposed) unlisten()
-      else unlisteners.push(unlisten)
+      if (disposed) return
+      try {
+        const unlisten = await subscribe()
+        if (disposed) unlisten()
+        else unlisteners.push(unlisten)
+      } catch (error) {
+        console.error('Failed to subscribe to window activity:', error)
+      }
     }
     if (!disposed) await update()
   })
@@ -44,4 +51,6 @@ export function useWindowActivity() {
     document.removeEventListener('visibilitychange', update)
     unlisteners.forEach((unlisten) => unlisten())
   })
+
+  return update
 }

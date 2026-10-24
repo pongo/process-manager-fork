@@ -56,7 +56,7 @@ import AppDialog from '@/components/AppDialog.vue'
 
 const store = useProcessStore()
 const win = getCurrentWindow()
-useWindowActivity()
+const refreshWindowActivity = useWindowActivity()
 const ready = ref(false)
 usePolling(() => store.loadProcesses(), () => ready.value && windowActive.value)
 
@@ -78,7 +78,7 @@ onMounted(async () => {
     // Allow the initial Vue render to paint before revealing the native window.
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        invoke('main_window_ready').catch(console.error)
+        invoke('main_window_ready').then(refreshWindowActivity).catch(console.error)
       })
     })
   }

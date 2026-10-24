@@ -73,6 +73,43 @@ fn assert_stopped(pids: &[u32]) {
 }
 
 #[test]
+fn monitoring_samples_live_tree_and_uptime() {
+    let mut manager = ProcessManager::new();
+    let id = add_tree(&mut manager, false);
+    let pids = start_tree(&mut manager, &id);
+    let root = manager.processes[&id].pid.unwrap();
+    let uptime = manager.processes[&id].get_uptime_ms();
+    let mut system = sysinfo::System::new();
+    system.refresh_memory();
+    let result = crate::monitoring::Monitoring::get_process_metrics(root, &mut system);
+    std::thread::sleep(Duration::from_millis(20));
+    let next_uptime = manager.processes[&id].get_uptime_ms();
+    manager.stop_process(&id).unwrap();
+
+    let metrics = result.unwrap();
+    let memory_bytes: u64 = pids
+        .iter()
+        .map(|pid| {
+            system
+                .process(sysinfo::Pid::from_u32(*pid))
+                .unwrap()
+                .memory()
+        })
+        .sum();
+    // Windows may add console host processes to the tree as well.
+    assert!(metrics.memory_mb >= (memory_bytes as f64 / (1024.0 * 1024.0)).ceil() as u64);
+    let root_memory = system
+        .process(sysinfo::Pid::from_u32(root))
+        .unwrap()
+        .memory();
+    assert!(
+        memory_bytes > root_memory,
+        "Descendant memory must be included"
+    );
+    assert!(next_uptime > uptime, "Running process uptime must advance");
+}
+
+#[test]
 fn stop_and_remove_terminate_complete_trees() {
     let mut manager = ProcessManager::new();
     let id = add_tree(&mut manager, false);
