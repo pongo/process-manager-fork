@@ -64,6 +64,7 @@
         :key="p.id"
         :class="['process-row', `row-${p.status.toLowerCase()}`, { selected: store.selectedProcessId === p.id }]"
         @click="store.selectedProcessId = p.id"
+        @contextmenu.prevent.stop="openContextMenu($event, p.id)"
       >
         <!-- Main row content -->
         <div class="row-content">
@@ -112,6 +113,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { Menu } from '@tauri-apps/api/menu'
+import { LogicalPosition } from '@tauri-apps/api/dpi'
 import { useProcessStore } from '@/stores/processStore'
 import { useDialog } from '@/composables/useDialog'
 import { windowActive } from '@/composables/useWindowActivity'
@@ -119,7 +122,55 @@ import { usePolling } from '@/composables/usePolling'
 import AddProcessModal from '@/components/AddProcessModal.vue'
 
 const store = useProcessStore()
-const { openAlert } = useDialog()
+const { openConfirm, openAlert } = useDialog()
+const emit = defineEmits<{ settings: [id: string] }>()
+
+const toggleProcess = async (id: string) => {
+  const process = store.processes.find((p) => p.id === id)
+  if (!process) return
+  const running = process.status === 'Running'
+  try {
+    if (running) await store.stopProcess(id)
+    else await store.startProcess(id)
+  } catch (e) {
+    await openAlert(running ? 'Stop Failed' : 'Start Failed', String(e))
+  }
+}
+
+const removeProcess = async (id: string) => {
+  const process = store.processes.find((p) => p.id === id)
+  if (!process) return
+  const ok = await openConfirm(
+    'Remove Process',
+    `Remove "${process.name}"? This cannot be undone.`,
+    { type: 'danger', confirmLabel: 'Remove', cancelLabel: 'Cancel' }
+  )
+  if (!ok) return
+  try { await store.removeProcess(id) }
+  catch (e) { await openAlert('Remove Failed', String(e)) }
+}
+
+const openContextMenu = async (event: MouseEvent, id: string) => {
+  const process = store.processes.find((p) => p.id === id)
+  if (!process) return
+  store.selectedProcessId = id
+  let menu: Menu | undefined
+  try {
+    menu = await Menu.new({
+      items: [
+        { id: 'toggle', text: process.status === 'Running' ? 'Stop' : 'Start', action: () => { void toggleProcess(id) } },
+        { item: 'Separator' },
+        { id: 'settings', text: 'Settings', action: () => emit('settings', id) },
+        { id: 'remove', text: 'Remove', action: () => { void removeProcess(id) } },
+      ],
+    })
+    await menu.popup(new LogicalPosition(event.clientX, event.clientY))
+  } catch (e) {
+    await openAlert('Context Menu Failed', String(e))
+  } finally {
+    await menu?.close().catch(console.error)
+  }
+}
 
 const search = ref('')
 const showAddModal = ref(false)

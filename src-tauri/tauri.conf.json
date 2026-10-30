@@ -20,6 +20,7 @@
         "maximized": true,
         "visible": false,
         "backgroundColor": "#101010",
+        "theme": "Dark",
         "decorations": false
       }
     ],

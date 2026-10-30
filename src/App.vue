@@ -31,11 +31,11 @@
     <!-- Main workspace -->
     <div class="workspace">
       <aside class="sidebar">
-        <ProcessList />
+        <ProcessList @settings="processPanel?.openSettings($event)" />
       </aside>
       <div class="main-col">
         <main class="main">
-          <ProcessPanel />
+          <ProcessPanel ref="processPanel" />
         </main>
       </div>
     </div>
@@ -54,6 +54,7 @@ import ProcessPanel from '@/components/ProcessPanel.vue'
 import AppDialog from '@/components/AppDialog.vue'
 
 const store = useProcessStore()
+const processPanel = ref<InstanceType<typeof ProcessPanel> | null>(null)
 const win = getCurrentWindow()
 useWindowActivity()
 const ready = ref(false)

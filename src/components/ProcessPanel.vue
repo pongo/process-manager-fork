@@ -248,6 +248,14 @@ watch(() => store.selectedProcessId, async (id) => {
 
 watch(showSettings, (val) => { if (val) syncDraft() })
 
+const openSettings = async (id: string) => {
+  store.selectedProcessId = id
+  await nextTick()
+  if (store.selectedProcessId === id) showSettings.value = true
+}
+
+defineExpose({ openSettings })
+
 // Auto-scroll on new logs
 watch(() => currentLogs.value.length, () => scrollToBottom())
 
