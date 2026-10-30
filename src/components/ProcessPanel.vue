@@ -17,11 +17,7 @@
       <!-- ── Header ── -->
       <div class="panel-header">
         <div class="hdr-left">
-          <span :class="['status-dot', `dot-${proc.status.toLowerCase()}`]"></span>
-          <h2 class="proc-title">{{ proc.name }}</h2>
-          <span :class="['status-badge', `sb-${proc.status.toLowerCase()}`]">{{ proc.status }}</span>
-        </div>
-        <div class="hdr-right">
+          <div class="hdr-actions">
           <button v-if="proc.status !== 'Running'" class="hdr-btn start" @click="startProcess">
             <svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 1.5l7 3.5-7 3.5V1.5z" fill="currentColor"/></svg>
             Start
@@ -30,18 +26,17 @@
             <svg viewBox="0 0 10 10" width="9" height="9"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor"/></svg>
             Stop
           </button>
-          <button class="hdr-btn restart" @click="restartProcess">
-            <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-            </svg>
-            Restart
+          </div>
+          <div class="hdr-identity">
+            <h2 class="proc-title">{{ proc.name }}</h2>
+          </div>
+        </div>
+        <div class="hdr-right">
+          <button :class="['hdr-btn', 'settings-btn', showSettings ? 'active' : '']" @click="showSettings = !showSettings">
+            Settings
           </button>
           <button class="hdr-btn remove-btn" @click="removeProcess">
             Remove
-          </button>
-          <button :class="['hdr-btn', 'settings-btn', showSettings ? 'active' : '']" @click="showSettings = !showSettings">
-            Settings
           </button>
           <button class="hdr-btn close-btn" @click="closePanel" title="Close">
             Close
@@ -275,12 +270,6 @@ const stopProcess = async () => {
   catch (e) { await openAlert('Stop Failed', String(e)) }
 }
 
-const restartProcess = async () => {
-  if (!store.selectedProcessId) return
-  try { await store.restartProcess(store.selectedProcessId) }
-  catch (e) { await openAlert('Restart Failed', String(e)) }
-}
-
 const removeProcess = async () => {
   const p = proc.value
   if (!p) return
@@ -445,16 +434,8 @@ function parseAnsi(raw: string): string {
   flex-shrink: 0;
   gap: 10px;
 }
-.hdr-left { display: flex; align-items: center; gap: 9px; min-width: 0; max-width: 100%; overflow: hidden; }
-
-.status-dot {
-  width: 9px; height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.dot-running { background: var(--success); box-shadow: 0 0 7px #22c55eaa; }
-.dot-stopped { background: var(--text-muted); }
-.dot-crashed { background: var(--danger); box-shadow: 0 0 7px #ef4444aa; }
+.hdr-left { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; min-width: 0; max-width: 100%; }
+.hdr-identity { display: flex; align-items: center; gap: 9px; min-width: 0; max-width: 100%; overflow: hidden; }
 
 .proc-title {
   margin: 0;
@@ -466,19 +447,7 @@ function parseAnsi(raw: string): string {
   text-overflow: ellipsis;
 }
 
-.status-badge {
-  font-size: var(--font-size-small);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 20px;
-  flex-shrink: 0;
-}
-.sb-running { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-.sb-stopped { background: var(--bg-raised); color: var(--text-muted); border: 1px solid var(--border-control); }
-.sb-crashed { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
-
+.hdr-actions,
 .hdr-right { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
 
 .hdr-btn {
@@ -497,7 +466,6 @@ function parseAnsi(raw: string): string {
 .hdr-btn:hover { filter: brightness(1.15); }
 .hdr-btn.start   { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
 .hdr-btn.stop    { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
-.hdr-btn.restart { background: var(--warning-bg); color: var(--warning); border-color: var(--warning-border); }
 .hdr-btn.settings-btn,
 .hdr-btn.close-btn,
 .hdr-btn.remove-btn { background: var(--bg-raised); color: var(--text-muted); border-color: var(--border-control); }
