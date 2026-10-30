@@ -87,27 +87,7 @@
             </div>
           </div>
         </div>
-
-        <!-- Reserved action slots prevent layout shifts on hover. -->
-        <div class="row-actions">
-          <button v-if="p.status !== 'Running'" class="ra-btn start" @click.stop="startProcess(p.id)" title="Start">
-            <svg viewBox="0 0 10 10" width="8" height="8"><path d="M2 1.5l7 3.5-7 3.5V1.5z" fill="currentColor"/></svg>
-            Start
-          </button>
-          <button v-if="p.status === 'Running'" class="ra-btn stop" @click.stop="stopProcess(p.id)" title="Stop">
-            <svg viewBox="0 0 10 10" width="8" height="8"><rect x="1.5" y="1.5" width="7" height="7" rx="1" fill="currentColor"/></svg>
-            Stop
-          </button>
-          <button class="ra-btn restart" @click.stop="restartProcess(p.id)" title="Restart">
-            <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-            </svg>
-            Restart
-          </button>
-        </div>
       </div>
-
     </div>
 
     <!-- ── Footer ── -->
@@ -181,18 +161,6 @@ const onProcessAdded = (id: string) => {
   store.selectedProcessId = id
 }
 
-const startProcess = async (id: string) => {
-  try { await store.startProcess(id) }
-  catch (e) { await openAlert('Start Failed', String(e)) }
-}
-const stopProcess = async (id: string) => {
-  try { await store.stopProcess(id) }
-  catch (e) { await openAlert('Stop Failed', String(e)) }
-}
-const restartProcess = async (id: string) => {
-  try { await store.restartProcess(id) }
-  catch (e) { await openAlert('Restart Failed', String(e)) }
-}
 const startAllProcesses = async () => {
   try { await store.startAll() }
   catch (e) { await openAlert('Start All Failed', String(e)) }
@@ -321,7 +289,7 @@ const stopAllProcesses = async () => {
 .row-content {
   display: flex;
   align-items: stretch;
-  padding: 10px 12px 6px 0;
+  padding: 10px 12px 10px 0;
 }
 .row-indicator {
   width: 3px;
@@ -387,46 +355,6 @@ const stopAllProcesses = async () => {
   font-size: var(--font-size-small); font-weight: 700; color: var(--danger);
   background: var(--danger-bg); border: 1px solid var(--danger-border);
   padding: 0 5px; border-radius: 10px; flex-shrink: 0;
-}
-
-/* ── Row actions ── */
-.row-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: center;
-  gap: 4px;
-  padding: 0 12px 9px 14px;
-}
-.ra-btn {
-  display: flex; align-items: center; justify-content: center; gap: 4px;
-  min-width: 0;
-  height: 28px;
-  padding: 3px 6px;
-  background: var(--bg-raised);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-control); border-radius: 5px;
-  cursor: pointer; font-size: var(--font-size-small); font-weight: 600;
-  white-space: nowrap;
-  transition: background 0.1s, border-color 0.1s;
-}
-.ra-btn svg { flex-shrink: 0; }
-.ra-btn:hover { background: var(--bg-hover); border-color: var(--border-control-hover); }
-.ra-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.ra-btn.stop    { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
-.ra-btn.stop:hover { background: var(--danger-bg-hover); }
-
-.process-row:not(.row-running) .ra-btn.restart {
-  visibility: hidden;
-}
-.process-row:hover .ra-btn,
-.process-row:focus-within .ra-btn {
-  visibility: visible;
-}
-
-@media (hover: none) {
-  .process-row:not(.row-running) .ra-btn.restart {
-    visibility: visible;
-  }
 }
 
 /* ── Footer ── */
