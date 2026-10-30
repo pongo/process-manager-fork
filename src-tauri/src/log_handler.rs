@@ -11,7 +11,7 @@ const MAX_LOG_BACKUPS: usize = 1;
 
 pub struct LogHandler {
     log_dir: PathBuf,
-    process_locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    process_locks: Mutex<HashMap<String, Arc<Mutex<bool>>>>,
 }
 
 impl LogHandler {
@@ -29,7 +29,10 @@ impl LogHandler {
 
     pub fn write_log(&self, process_id: &str, level: &str, message: &str) -> Result<(), Box<dyn std::error::Error>> {
         let process_lock = self.process_lock(process_id);
-        let _guard = process_lock.lock().unwrap_or_else(|e| e.into_inner());
+        let deleted = process_lock.lock().unwrap_or_else(|e| e.into_inner());
+        if *deleted {
+            return Ok(());
+        }
 
         let log_path = self.get_log_file(process_id);
         let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
@@ -97,9 +100,30 @@ impl LogHandler {
         Ok(())
     }
 
-    fn process_lock(&self, process_id: &str) -> Arc<Mutex<()>> {
+    pub fn remove_process_logs(&self, process_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let process_lock = self.process_lock(process_id);
+        let mut deleted = process_lock.lock().unwrap_or_else(|e| e.into_inner());
+        // Readers may still drain buffered output after the process stops.
+        *deleted = true;
+        let active_name = format!("{}.log", process_id);
+        let backup_prefix = format!("{}.", process_id);
+        for entry in fs::read_dir(&self.log_dir)? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let Some(name) = name.to_str() else { continue };
+            let is_backup = name.strip_prefix(&backup_prefix)
+                .and_then(|suffix| suffix.strip_suffix(".log"))
+                .is_some_and(|index| !index.is_empty() && index.bytes().all(|b| b.is_ascii_digit()));
+            if name == active_name || is_backup {
+                fs::remove_file(entry.path())?;
+            }
+        }
+        Ok(())
+    }
+
+    fn process_lock(&self, process_id: &str) -> Arc<Mutex<bool>> {
         let mut locks = self.process_locks.lock().unwrap_or_else(|e| e.into_inner());
-        Arc::clone(locks.entry(process_id.to_string()).or_insert_with(|| Arc::new(Mutex::new(()))))
+        Arc::clone(locks.entry(process_id.to_string()).or_insert_with(|| Arc::new(Mutex::new(false))))
     }
 
     fn rotate_log(&self, process_id: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -132,6 +156,26 @@ impl LogHandler {
 #[cfg(test)]
 mod tests {
     use super::{LogHandler, MAX_LOG_SIZE_BYTES};
+
+    #[test]
+    fn removing_process_logs_removes_archives_and_blocks_late_writes() {
+        let log_dir = std::env::temp_dir().join(format!("pm-logs-{}", uuid::Uuid::new_v4()));
+        let handler = LogHandler::new(log_dir.clone()).unwrap();
+        handler.write_log("process", "stdout", "active").unwrap();
+        for name in ["process.1.log", "process.12.log", "process-other.log", "process.extra.log"] {
+            std::fs::write(log_dir.join(name), "saved").unwrap();
+        }
+        handler.remove_process_logs("process").unwrap();
+        handler.write_log("process", "stdout", "late output").unwrap();
+        handler.remove_process_logs("process").unwrap();
+        handler.remove_process_logs("missing").unwrap();
+        assert!(!handler.get_log_file("process").exists());
+        assert!(!log_dir.join("process.1.log").exists());
+        assert!(!log_dir.join("process.12.log").exists());
+        assert!(log_dir.join("process-other.log").exists());
+        assert!(log_dir.join("process.extra.log").exists());
+        std::fs::remove_dir_all(log_dir).unwrap();
+    }
 
     #[test]
     fn rotation_preserves_exact_limit_and_replaces_the_only_backup() {

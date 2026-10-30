@@ -185,6 +185,9 @@ pub async fn remove_process(
 ) -> Result<(), String> {
     let mut manager = state.manager.lock().map_err(|e| e.to_string())?;
 
+    manager.stop_process(&process_id)?;
+    state.log_handler.remove_process_logs(&process_id)
+        .map_err(|e| format!("Failed to remove process logs: {}", e))?;
     manager.remove_process(&process_id)?;
 
     persist_config(&manager)
