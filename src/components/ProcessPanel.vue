@@ -158,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useProcessStore } from '@/stores/processStore'
 import { useDialog } from '@/composables/useDialog'
@@ -222,6 +222,7 @@ const stopLogListener = () => {
 }
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey, true)
   metricsRevision++
   stopLogListener()
 })
@@ -294,6 +295,14 @@ const removeProcess = async () => {
 const closePanel = () => {
   store.selectedProcessId = null
 }
+
+const onKey = (event: KeyboardEvent) => {
+  if (event.key !== 'Escape' || event.defaultPrevented || event.repeat || !proc.value) return
+  if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+  closePanel()
+}
+
+onMounted(() => window.addEventListener('keydown', onKey, true))
 
 const saveSettings = async () => {
   if (!store.selectedProcessId) return
