@@ -138,7 +138,7 @@
             <button class="log-btn danger" @click="clearLogs">Clear</button>
           </div>
         </div>
-        <div class="logs-body" ref="logsEl">
+        <div class="logs-body" ref="logsEl" tabindex="0" aria-label="Process output log" @mousedown="logsEl?.focus()">
           <div
             v-for="(log, i) in currentLogs"
             :key="i"

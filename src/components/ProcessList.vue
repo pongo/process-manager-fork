@@ -112,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Menu } from '@tauri-apps/api/menu'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
 import { useProcessStore } from '@/stores/processStore'
@@ -220,6 +220,40 @@ const stopAllProcesses = async () => {
   try { await store.stopAll() }
   catch (e) { await openAlert('Stop All Failed', String(e)) }
 }
+
+const navigateProcesses = (direction: 1 | -1) => {
+  const processes = filteredProcesses.value
+  if (processes.length === 0) return false
+
+  const currentIndex = processes.findIndex((process) => process.id === store.selectedProcessId)
+  const nextIndex = currentIndex < 0
+    ? (direction > 0 ? 0 : processes.length - 1)
+    : (currentIndex + direction + processes.length) % processes.length
+
+  store.selectedProcessId = processes[nextIndex].id
+  return true
+}
+
+const onKey = (event: KeyboardEvent) => {
+  if (event.defaultPrevented) return
+  const target = event.target as HTMLElement | null
+  if (target?.closest('input, textarea, select, button, [contenteditable="true"], .logs-body')) return
+
+  let handled = false
+  switch (event.key) {
+    case 'ArrowUp':
+      handled = navigateProcesses(-1)
+      break
+    case 'ArrowDown':
+      handled = navigateProcesses(1)
+      break
+  }
+
+  if (handled) event.preventDefault()
+}
+
+onMounted(() => window.addEventListener('keydown', onKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
 
 </script>
 
