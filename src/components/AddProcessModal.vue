@@ -112,6 +112,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch, nextTick } from 'vue'
 import { useProcessStore } from '@/stores/processStore'
+import { parseCommand } from '@/utils/parseCommand'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void; (e: 'added', id: string): void }>()
@@ -139,11 +140,6 @@ watch(() => props.show, async (v) => {
 const focusNext = (target: 'cmd' | 'dir') => {
   if (target === 'cmd') cmdInput.value?.focus()
   else dirInput.value?.focus()
-}
-
-const parseCommand = (raw: string) => {
-  const parts = raw.trim().split(/\s+/)
-  return { cmd: parts[0] ?? '', args: parts.slice(1) }
 }
 
 const submit = async () => {
