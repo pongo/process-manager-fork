@@ -44,8 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
+import { computed, onMounted, ref } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useProcessStore } from '@/stores/processStore'
 import { useWindowActivity, windowActive } from '@/composables/useWindowActivity'
@@ -56,7 +55,7 @@ import AppDialog from '@/components/AppDialog.vue'
 
 const store = useProcessStore()
 const win = getCurrentWindow()
-const refreshWindowActivity = useWindowActivity()
+useWindowActivity()
 const ready = ref(false)
 usePolling(() => store.loadProcesses(), () => ready.value && windowActive.value)
 
@@ -70,18 +69,8 @@ const toggleMaximize = () => win.toggleMaximize()
 const hideToTray = () => win.close()
 
 onMounted(async () => {
-  try {
-    await store.loadProcesses()
-    ready.value = true
-  } finally {
-    await nextTick()
-    // Allow the initial Vue render to paint before revealing the native window.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        invoke('main_window_ready').then(refreshWindowActivity).catch(console.error)
-      })
-    })
-  }
+  await store.loadProcesses()
+  ready.value = true
 })
 </script>
 
